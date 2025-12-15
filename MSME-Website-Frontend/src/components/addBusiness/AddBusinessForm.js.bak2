@@ -1,0 +1,2087 @@
+'use client';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import BusinessPreviewModal from './BusinessPreviewModal';
+import { FiPlus, FiUpload, FiCheck,  FiChevronDown, FiChevronUp, FiHelpCircle, FiX } from 'react-icons/fi';
+import SuccessModal from './SuccessModal';
+import { AddNewBusiness, uploadBusinessProfilePdf, uploadBusinessImage, updateBusiness, getBusinessDetailsById, uploadCertificateOfIncorporation, checkEmailExists } from '@/apis/add-business-api';
+import { getBusinessCategoryList, getBusinessSubCategoryList } from '@/apis/business-category-api';
+import toast from 'react-hot-toast';
+import { useAuth } from '@/context/AuthContext';
+import { FaCopyright } from 'react-icons/fa';
+import { RiCopyrightLine } from 'react-icons/ri';
+
+const AddBusinessForm = () => {
+  const { userId, isLoggedIn } = useAuth();
+  const [ isPreviewOpen, setIsPreviewOpen ] = useState( false );
+  const [ isUpdateMode, setIsUpdateMode ] = useState( false );
+  const [ categories, setCategories ] = useState( [] );
+  const [ subCategories, setSubCategories ] = useState( [] );
+  const [ validationErrors, setValidationErrors ] = useState( {
+    emailAddress: '',
+    password: '',
+    contactNumber: '',
+    primaryContactNumber: '',
+    primaryContactEmail: '',
+    servicesOffered:'',
+    productsOffered:'',
+    businessSubCategoryId: '',
+    isRegistered: '',
+    isDisabilityOwned: '',
+    ownerType: '',
+    annualTurnover: '',
+    directors: '',
+    telephoneNumber: '',
+    inkhundla: '',
+    ruralUrbanClassification: '',
+    ownershipType: '',
+    owners: '',
+  } );
+  const [ formData, setFormData ] = useState( {
+    primaryContactFirstName: '',
+    primaryContactLastName: '',
+    primaryContactNumber: '',
+    primaryContactEmail: '',
+    organizationName: '',
+    businessCategoryId: '',
+    businessCategoryName: '',
+    businessSubCategoryId: '',
+    servicesOffered: '',
+    productsOffered: '',
+    annualTurnover: '',
+    yearOfEstablishment: '',
+    isRegistered: '',
+    isDisabilityOwned: '',
+    ownerType: '',
+    ownershipType: '',
+    owners: [{ gender: '' }],
+    telephoneNumber: '',
+    inkhundla: '',
+    ruralUrbanClassification: '',
+    numberOfEmployees: 0,
+    companyDescription: '',
+    contactNumber: '',
+    emailAddress: '',
+    password: '',
+    streetAddress: '',
+    town: '',
+    region: '',
+    latitude: '',
+    longitude: '',
+    directors: [ {
+      firstName: '',
+      lastName: '',
+      age: '',
+      gender: '',
+      qualification: '',
+      nationality: ''
+    } ]
+  } );
+
+  const [ activeSection, setActiveSection ] = useState( 'business' );
+  const [ uploadedFiles, setUploadedFiles ] = useState( {
+    businessProfile: null,
+    businessImage: null,
+    certificateOfIncorporation: null
+  } );
+  const [ isUploading, setIsUploading ] = useState( {
+    businessProfile: false,
+    businessImage: false,
+    certificateOfIncorporation: false
+  } );
+  const [ expandedSections, setExpandedSections ] = useState( {
+    basic: false,
+    details: false,
+    status: false,
+    financial: false,
+    contact: false,
+    address: false
+  } );
+  const [ isSuccessModalOpen, setIsSuccessModalOpen ] = useState( false );
+  const [ showCoordinatesHelp, setShowCoordinatesHelp ] = useState( false );
+  const [ wordCount, setWordCount ] = useState( 0 );
+  const MIN_WORDS = 50;
+  const [ sectionErrors, setSectionErrors ] = useState({});
+  const [ initialFormData, setInitialFormData ] = useState(null);
+  const [ isCheckingEmail, setIsCheckingEmail ] = useState(false);
+
+  useEffect( () => {
+    const checkLoginState = () => {
+      if ( isLoggedIn ) {
+        fetchCurrentBusinessDetailById();
+      } else {
+        setFormData( {
+          primaryContactFirstName: '',
+          primaryContactLastName: '',
+          primaryContactNumber: '',
+          primaryContactEmail: '',
+          organizationName: '',
+          businessCategoryName: '',
+          businessSubCategoryId: '',
+          businessSubCategoryName: '',
+          servicesOffered: '',
+          productsOffered: '',
+          annualTurnover: '',
+          yearOfEstablishment: '',
+          isRegistered: '',
+          isDisabilityOwned: '',
+          ownerType: '',
+          numberOfEmployees: 0,
+          companyDescription: '',
+          contactNumber: '',
+          emailAddress: '',
+          password: '',
+          streetAddress: '',
+          town: '',
+          region: '',
+          businessProfileUrl: '',
+          businessImageUrl: '',
+          certificateOfIncorporationUrl: '',
+          directors: [ {
+            firstName: '',
+            lastName: '',
+            age: '',
+            gender: '',
+            qualification: ''
+          } ]
+        } );
+        setIsUpdateMode( false );
+      }
+    };
+
+    checkLoginState();
+  }, [] );
+
+  const fetchCurrentBusinessDetailById = async () => {
+    try {
+      const response = await getBusinessDetailsById( userId );
+      console.log( "Current business details", response );
+      if ( response?.msmeDetails ) {
+        const { msmeDetails, directorsDetail } = response;
+
+        // Update form data with MSME details
+        const newFormData = {
+          ...formData,
+          organizationName: msmeDetails.name_of_organization || '',
+          companyDescription: msmeDetails.brief_company_description || '',
+          businessCategoryId: msmeDetails.business_category_id || '',
+          businessCategoryName: msmeDetails.business_category_name || '',
+          businessSubCategoryId: msmeDetails.business_sub_category_id || '',
+          businessSubCategoryName: msmeDetails.business_sub_category_name || '',
+          servicesOffered: msmeDetails.service_offered || '',
+          productsOffered: msmeDetails.product_offered || '',
+          isRegistered: msmeDetails.business_type?.toLowerCase() || '',
+          isDisabilityOwned: msmeDetails.disability_owned?.toLowerCase() || '',
+          ownerType: msmeDetails.ownerType || '',
+          annualTurnover: msmeDetails.turnover ? msmeDetails.turnover : '',
+          yearOfEstablishment: msmeDetails.establishment_year || '',
+          numberOfEmployees: msmeDetails.employees ? parseInt( msmeDetails.employees ) : 0,
+          contactNumber: msmeDetails.contact_number || '',
+          emailAddress: msmeDetails.email_address || '',
+          streetAddress: msmeDetails.street_address || '',
+          town: msmeDetails.town || '',
+          region: msmeDetails.region || '',
+          latitude: msmeDetails.lat || '',
+          longitude: msmeDetails.longe || '',
+          primaryContactFirstName: msmeDetails.primary_contact_name?.split( ' ' )[ 0 ] || '',
+          primaryContactLastName: msmeDetails.primary_contact_name?.split( ' ' ).slice( 1 ).join( ' ' ) || '',
+          primaryContactNumber: msmeDetails.primary_contact_number || '',
+          primaryContactEmail: msmeDetails.primary_contact_email || '',
+          businessProfileUrl: msmeDetails.business_profile_url || '',
+          businessImageUrl: msmeDetails.business_image_url || '',
+          certificateOfIncorporationUrl: msmeDetails.incorporation_image_url || '',
+          ownershipType: msmeDetails.ownership_type || '',
+          telephoneNumber: msmeDetails.telephone_number || '',
+          inkhundla: msmeDetails.inkhundla || '',
+          ruralUrbanClassification: msmeDetails.rural_urban_classification || '',
+          directors: directorsDetail?.map( director => ( {
+            firstName: director.name?.split( ' ' )[ 0 ] || '',
+            lastName: director.name?.split( ' ' ).slice( 1 ).join( ' ' ) || '',
+            age: director.age || '',
+            gender: director.gender?.toLowerCase() || '',
+            qualification: director.qualification || '',
+            nationality: director.nationality || ''
+          } ) ) || [ {
+            firstName: '',
+            lastName: '',
+            age: '',
+            gender: '',
+            qualification: ''
+          } ]
+        };
+        // Update uploaded files state if URLs exist
+        if ( msmeDetails.business_profile_url ) {
+          setUploadedFiles( prev => ( {
+            ...prev,
+            businessProfile: { name: 'Business Profile' }
+          } ) );
+        }
+        if ( msmeDetails.business_image_url ) {
+          setUploadedFiles( prev => ( {
+            ...prev,
+            businessImage: { name: 'Business Image' }
+          } ) );
+        }
+        if ( msmeDetails.incorporation_image_url ) {
+          setUploadedFiles( prev => ( {
+            ...prev,
+            certificateOfIncorporation: { name: 'Registration Document(s)' }
+          } ) );
+        }
+        setFormData(newFormData);
+        setInitialFormData(JSON.parse(JSON.stringify(newFormData)));
+      }
+      setIsUpdateMode( true );
+    } catch ( err ) {
+      console.error( 'Error fetching business details:', err );
+      toast.error( 'Failed to fetch business details. Please try again.' );
+    }
+  };
+
+  const validateField = ( name, value ) => {
+    let error = '';
+
+    switch ( name ) {
+      case 'emailAddress':
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if ( value && !emailRegex.test( value ) ) {
+          error = 'Please enter a valid email address';
+        }
+        break;
+      case 'password':
+        if ( value && value.length < 6 ) {
+          error = 'Password must be at least 6 characters';
+        }
+        break;
+      case 'contactNumber':
+      case 'primaryContactNumber':
+        if ( value && value.length > 8 ) {
+          error = 'Contact number cannot exceed 8 digits';
+        } else if ( value && value.length < 8 ) {
+          error = 'Contact number must be 8 digits';
+        }
+        break;
+      case 'primaryContactEmail':
+        const primaryEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if ( value && !primaryEmailRegex.test( value ) ) {
+          error = 'Please enter a valid email address';
+        }
+        break;
+      default:
+        break;
+    }
+
+    setValidationErrors( prev => ( {
+      ...prev,
+      [ name ]: error
+    } ) );
+  };
+
+  const handleInputChange = ( e ) => {
+    const { name, value } = e.target;
+
+    // Special handling for business category selection
+    if ( name === 'businessCategoryName' ) {
+      const selectedCategory = categories.find( category => category.name === value );
+      setFormData( prev => ( {
+        ...prev,
+        businessCategoryName: value,
+        businessCategoryId: selectedCategory ? selectedCategory.id : ''
+      } ) );
+    }else if ( name === 'businessSubCategoryId' ) {
+      const selectedCategory = subCategories.find( category => String(category.id) === String(value) );
+      setFormData( prev => ( {
+        ...prev,
+        businessSubCategoryId: value,
+        businessSubCategoryName: selectedCategory ? selectedCategory.name : ''
+      } ) );
+    } else {
+      // Special handling for contact numbers
+      if ( name === 'contactNumber' || name === 'primaryContactNumber' ) {
+        // Only allow numbers and limit to 8 digits
+        const numericValue = value.replace( /[^0-9]/g, '' ).slice( 0, 8 );
+        setFormData( prev => ( {
+          ...prev,
+          [ name ]: numericValue
+        } ) );
+
+        // Validate the number
+        validateField( name, numericValue );
+        // Clear section error if valid
+        setSectionErrors(prev => {
+          const newErrors = { ...prev };
+          if (
+            (name === 'contactNumber' || name === 'primaryContactNumber') &&
+            numericValue.length === 8
+          ) {
+            delete newErrors[name];
+          }
+          return newErrors;
+        });
+        return;
+      }
+
+      // Normal input handling
+      setFormData( prev => ( {
+        ...prev,
+        [ name ]: value
+      } ) );
+
+      if ( name === 'servicesOffered'|| name==='productsOffered' ) {
+        const words = value.length ;
+        setWordCount( words );
+        if ( words > 301  ) {
+          setValidationErrors( prev => ( {
+            ...prev,
+            [name]: ` Maximum limit 300 characters.`
+          } ) );
+        } else {
+          setValidationErrors( prev => ( {
+            ...prev,
+            [name]: ''
+          } ) );
+        }
+      }
+      // Update word count for company description
+      if ( name === 'companyDescription' ) {
+        const words = value.length ;
+        setWordCount( words );
+        if ( words > 1001 || words < MIN_WORDS ) {
+          setValidationErrors( prev => ( {
+            ...prev,
+            companyDescription: `We recommend writing at least ${MIN_WORDS} words in your company description.`
+          } ) );
+        } else {
+          setValidationErrors( prev => ( {
+            ...prev,
+            companyDescription: ''
+          } ) );
+        }
+      }
+
+      // Validate field if it's one of our target fields
+      if ( [ 'emailAddress', 'password', 'contactNumber', 'primaryContactNumber' ].includes( name ) ) {
+        validateField( name, value );
+      }
+    }
+
+    // --- Clear section error for the field if now valid ---
+    setSectionErrors(prev => {
+      const newErrors = { ...prev };
+      // Re-validate the field for the current section
+      let error = '';
+      // Only check for fields that are validated in validateSection
+      switch (name) {
+        case 'organizationName':
+          if (!value) error = 'Organization name is required';
+          break;
+        case 'companyDescription':
+          if (!value || value.length < MIN_WORDS) error = `Company description must be at least ${MIN_WORDS} characters`;
+          break;
+        case 'businessCategoryName':
+          if (!value) error = 'Business category is required';
+          break;
+        case 'businessSubCategoryId':
+          if (!value) error = 'Business sub-category is required';
+          break;
+        case 'isRegistered':
+          if (!value) error = 'Please select if you are a registered business';
+          break;
+        case 'isDisabilityOwned':
+          if (!value) error = 'Please select if business is PWD owned';
+          break;
+        case 'ownerType':
+          if (!value) error = "Please select owner's gender";
+          break;
+        case 'annualTurnover':
+          if (!value) error = 'Please select annual turnover';
+          break;
+        case 'emailAddress':
+          if (!value) error = 'Email address is required';
+          break;
+        case 'password':
+          if (!isLoggedIn) {
+            if (!value) error = 'Password is required';
+            else if (value.length < 6) error = 'Password must be at least 6 characters';
+          }
+          break;
+        case 'primaryContactFirstName':
+          if (!value) error = 'First name is required';
+          break;
+        case 'primaryContactLastName':
+          if (!value) error = 'Last name is required';
+          break;
+        case 'primaryContactNumber':
+          if (!value) error = 'Contact number is required';
+          break;
+        default:
+          break;
+      }
+      if (!error) {
+        delete newErrors[name];
+      } else {
+        newErrors[name] = error;
+      }
+      return newErrors;
+    });
+  };
+
+  const handleDirectorChange = ( index, field, value ) => {
+    const newDirectors = [ ...formData.directors ];
+    newDirectors[ index ] = {
+      ...newDirectors[ index ],
+      [ field ]: value
+    };
+    setFormData( prev => ( {
+      ...prev,
+      directors: newDirectors
+    } ) );
+  };
+
+  const addDirector = () => {
+    setFormData( prev => ( {
+      ...prev,
+      directors: [ ...prev.directors, {
+        firstName: '',
+        lastName: '',
+        age: '',
+        gender: '',
+        qualification: ''
+      } ]
+    } ) );
+  };
+
+  const removeDirector = ( index ) => {
+    if ( formData.directors.length > 1 ) {
+      setFormData( prev => ( {
+        ...prev,
+        directors: prev.directors.filter( ( _, i ) => i !== index )
+      } ) );
+    }
+  };
+
+  const handleOwnershipTypeChange = ( e ) => {
+    const newOwnershipType = e.target.value;
+    setFormData( prev => ( {
+      ...prev,
+      ownershipType: newOwnershipType,
+      owners: newOwnershipType === 'individual' ? [ { gender: '' } ] : [ { gender: '' }, { gender: '' } ]
+    } ) );
+  };
+
+  const handleOwnerGenderChange = ( index, gender ) => {
+    const newOwners = [ ...formData.owners ];
+    newOwners[ index ] = { gender };
+    setFormData( prev => ( { ...prev, owners: newOwners } ) );
+  };
+
+  const addOwner = () => {
+    if ( formData.owners.length < 5 ) {
+      setFormData( prev => ( {
+        ...prev,
+        owners: [ ...prev.owners, { gender: '' } ]
+      } ) );
+    }
+  };
+
+  const removeOwner = ( index ) => {
+    if ( formData.owners.length > 2 ) {
+      const newOwners = formData.owners.filter( ( _, i ) => i !== index );
+      setFormData( prev => ( { ...prev, owners: newOwners } ) );
+    }
+  };
+
+  const handleFileUpload = async ( e, type ) => {
+    const file = e.target.files[ 0 ];
+    if ( !file ) return;
+
+    try {
+      setIsUploading( prev => ( {
+        ...prev,
+        [ type ]: true
+      } ) );
+
+      let response;
+      if ( type === 'businessProfile' ) {
+        response = await uploadBusinessProfilePdf( file );
+      } else if ( type === 'businessImage' ) {
+        response = await uploadBusinessImage( file );
+      } else if ( type === 'certificateOfIncorporation' ) {
+        response = await uploadCertificateOfIncorporation( file );
+      }
+
+      if ( response?.data?.url ) {
+        setUploadedFiles( prev => ( {
+          ...prev,
+          [ type ]: file
+        } ) );
+
+        setFormData( prev => ( {
+          ...prev,
+          [ type === 'businessProfile' ? 'businessProfileUrl' :
+            type === 'businessImage' ? 'businessImageUrl' :
+              'certificateOfIncorporationUrl' ]: response.data.url
+        } ) );
+
+        toast.success( `${type === 'businessProfile' ? 'Business profile' :
+          type === 'businessImage' ? 'Business image' :
+            'Registration documents/Incorporation Certificate'} uploaded successfully!` );
+      }
+    } catch ( error ) {
+      console.error( `Error uploading ${type}:`, error );
+      toast.error( `Failed to upload ${type === 'businessProfile' ? 'business profile' :
+        type === 'businessImage' ? 'business image' :
+          'Registration documents/Incorporation Certificate'}. Please try again.` );
+    } finally {
+      setIsUploading( prev => ( {
+        ...prev,
+        [ type ]: false
+      } ) );
+    }
+  };
+
+  const handleSubmit = ( e ) => {
+    e.preventDefault();
+
+    // Check if files are still uploading
+    if ( isUploading.businessProfile || isUploading.businessImage ) {
+      toast.error( 'Please wait for file uploads to complete' );
+      return;
+    }
+
+    // Custom validation for required fields
+    let errors = {};
+    if (!formData.businessSubCategoryId) {
+      errors.businessSubCategoryId = 'Business sub-category is required';
+    }
+    if (!formData.isRegistered) {
+      errors.isRegistered = 'Please select if you are a registered business';
+    }
+    if (!formData.isDisabilityOwned) {
+      errors.isDisabilityOwned = 'Please select if business is PWD owned';
+    }
+    if (!formData.ownerType) {
+      errors.ownerType = "Please select owner's gender";
+    }
+    if (!formData.annualTurnover) {
+      errors.annualTurnover = 'Please select annual turnover';
+    }
+    // Director validation: if any field is filled, all must be filled
+    const directorErrors = formData.directors.map((director) => {
+      const anyFilled = Object.values(director).some((v) => v && v !== '');
+      if (!anyFilled) return null; // all blank, skip
+      const missingFields = Object.entries(director).filter(([k, v]) => !v || v === '');
+      if (missingFields.length > 0) {
+        return 'If any director field is filled, all fields are required.';
+      }
+      return null;
+    });
+    if (directorErrors.some((err) => err)) {
+      errors.directors = 'If any director field is filled, please ensure all director fields are completed.';
+    }
+
+    setValidationErrors((prev) => ({ ...prev, ...errors }));
+    if (Object.keys(errors).length > 0) {
+      toast.error('Please fill all required fields.');
+      return;
+    }
+
+    setIsPreviewOpen( true );
+  };
+
+  const handleConfirmSubmit = async () => {
+    if(formData.companyDescription.length>1001){
+      toast.error( 'Failed to submit business. Company Description SHould be less than 1000 words ' );
+    }
+    try {
+      if ( isUpdateMode ) {
+        const response = await updateBusiness( userId, formData );
+        toast.success( 'Business Updated successfully!' );
+        fetchCurrentBusinessDetailById();
+      } else {
+        const response = await AddNewBusiness( formData );
+        setIsSuccessModalOpen( true );
+      }
+      setIsPreviewOpen( false );
+    } catch ( error ) {
+      console.error( 'Error submitting business:', error );
+      toast.error( 'Failed to submit business. Please try again.' );
+    }
+  };
+
+  const handleSuccessModalClose = () => {
+    setIsSuccessModalOpen( false );
+    window.location.href = '/';
+  };
+
+  useEffect( () => {
+    const fetchCategoriesList = async () => {
+      try {
+        const response = await getBusinessCategoryList( 1, 500 );
+        if ( response?.values?.rows ) {
+          setCategories( response.values.rows );
+        }
+      } catch ( err ) {
+        console.error( 'Error fetching categories:', err );
+      }
+    };
+    fetchCategoriesList();
+  }, [] );
+
+  useEffect( () => {
+    const fetchSubCategoriesList = async () => {
+      const selectedCategoryId = formData.businessCategoryId;
+      
+      // Only fetch if a category is selected
+      if (!selectedCategoryId) {
+        setSubCategories([]);
+        return;
+      }
+      
+      try {
+        const response = await getBusinessSubCategoryList( selectedCategoryId );
+        console.log( 'Sub-categories response:', response );
+        if ( response?.values?.rows ) {
+          setSubCategories( response.values.rows );
+        }
+      } catch ( err ) {
+        console.error( 'Error fetching Sub-categories:', err );
+      }
+    };
+    fetchSubCategoriesList();
+  }, [ formData.businessCategoryId ] );
+
+  const formSections = [
+    { id: 'business', label: 'Business Information' },
+    { id: 'primaryContact', label: "Primary Contact Details" },
+    { id: 'directors', label: 'Director Information' },
+    { id: 'documents', label: 'Upload Documents' }
+  ];
+
+  const toggleSection = ( section ) => {
+    setExpandedSections( prev => ( {
+      ...prev,
+      [ section ]: !prev[ section ]
+    } ) );
+  };
+
+  const sectionVariants = {
+    expanded: {
+      height: 'auto',
+      opacity: 1,
+      transition: {
+        duration: 0.3,
+        ease: 'easeInOut'
+      }
+    },
+    collapsed: {
+      height: 0,
+      opacity: 0,
+      transition: {
+        duration: 0.3,
+        ease: 'easeInOut'
+      }
+    }
+  };
+
+  const renderSection = ( id, title, content ) => (
+    <motion.div
+      initial={ { opacity: 0, y: 20 } }
+      animate={ { opacity: 1, y: 0 } }
+      transition={ { duration: 0.3 } }
+      className="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200"
+    >
+      <button
+        type="button"
+        onClick={ ( e ) => {
+          e.preventDefault();
+          toggleSection( id );
+        } }
+        className="w-full flex items-center justify-between text-left"
+      >
+        <h4 className="text-lg font-medium text-gray-900 flex items-center">
+          <span className="mr-2">{ title }</span>
+        </h4>
+        { expandedSections[ id ] ? (
+          <FiChevronUp className="text-gray-500 transition-transform duration-200" />
+        ) : (
+          <FiChevronDown className="text-gray-500 transition-transform duration-200" />
+        ) }
+      </button>
+      <AnimatePresence>
+        { expandedSections[ id ] && (
+          <motion.div
+            variants={ sectionVariants }
+            initial="collapsed"
+            animate="expanded"
+            exit="collapsed"
+            className="mt-4"
+          >
+            { content }
+          </motion.div>
+        ) }
+      </AnimatePresence>
+    </motion.div>
+  );
+
+  // Section-specific validation
+  const validateSection = async (section) => {
+    let errors = {};
+    if (section === 'business') {
+      if (!formData.organizationName) errors.organizationName = 'Organization name is required';
+      if (!formData.companyDescription || formData.companyDescription.length < MIN_WORDS) errors.companyDescription = `Company description must be at least ${MIN_WORDS} characters`;
+      if (!formData.businessCategoryName) errors.businessCategoryName = 'Business category is required';
+      if (subCategories.length > 0 && !formData.businessSubCategoryId) errors.businessSubCategoryId = 'Business sub-category is required';
+      if (!formData.isRegistered) errors.isRegistered = 'Please select if you are a registered business';
+      if (!formData.isDisabilityOwned) errors.isDisabilityOwned = 'Please select if business is PWD owned';
+      if (!formData.ownershipType) errors.ownershipType = "Please select ownership type";
+      if (formData.ownershipType && (!formData.owners || formData.owners.length === 0)) errors.owners = "Please add at least one owner";
+      if (formData.owners && formData.owners.some(owner => !owner.gender)) errors.owners = "Please select gender for all owners";
+      if (!formData.inkhundla) errors.inkhundla = "Inkhundla is required";
+      if (!formData.ruralUrbanClassification) errors.ruralUrbanClassification = "Rural Urban Classification is required";
+      if (!formData.annualTurnover) errors.annualTurnover = 'Please select annual turnover';
+      if (!formData.emailAddress) {
+        errors.emailAddress = 'Email address is required';
+      } else {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.emailAddress)) {
+          errors.emailAddress = 'Please enter a valid email address';
+        } else {
+          // Check if email already exists in the system
+          const shouldCheckEmail = !isLoggedIn || (isLoggedIn && initialFormData && formData.emailAddress !== initialFormData.emailAddress);
+          
+          if (shouldCheckEmail) {
+            try {
+              setIsCheckingEmail(true);
+              await checkEmailExists(formData.emailAddress);
+            } catch (error) {
+              console.error('Error checking email existence:', error);
+              if (error?.response?.data?.exists) {
+                errors.emailAddress = error?.response?.data?.message || 'Email already exists';
+              }
+            } finally {
+              setIsCheckingEmail(false);
+            }
+          }
+        }
+      }
+      if (!isLoggedIn) {
+        if (!formData.password) {
+          errors.password = 'Password is required';
+        } else if (formData.password.length < 6) {
+          errors.password = 'Password must be at least 6 characters';
+        }
+      }
+    }
+    if (section === 'primaryContact') {
+      if (!formData.primaryContactFirstName) errors.primaryContactFirstName = 'First name is required';
+      if (!formData.primaryContactLastName) errors.primaryContactLastName = 'Last name is required';
+      if (!formData.primaryContactNumber) errors.primaryContactNumber = 'Contact number is required';
+    }
+    if (section === 'directors') {
+      // Director validation: if any field is filled, all must be filled
+      const directorErrors = formData.directors.map((director) => {
+        const anyFilled = Object.values(director).some((v) => v && v !== '');
+        if (!anyFilled) return null; // all blank, skip
+        const missingFields = Object.entries(director).filter(([k, v]) => !v || v === '');
+        if (missingFields.length > 0) {
+          return 'If any director field is filled, all fields are required.';
+        }
+        return null;
+      });
+      if (directorErrors.some((err) => err)) {
+        errors.directors = 'If any director field is filled, please ensure all director fields are completed.';
+      }
+    }
+    if (section === 'documents') {
+      // Example: require businessProfile and businessImage (customize as needed)
+      // if (!uploadedFiles.businessProfile) errors.businessProfile = 'Business profile is required';
+      // if (!uploadedFiles.businessImage) errors.businessImage = 'Business image is required';
+    }
+    return errors;
+  };
+
+  // Handler for Next button
+  const handleNextSection = async () => {
+    const errors = await validateSection(activeSection);
+    setSectionErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast.error('Invalid fields in this section.');
+      return;
+    }
+    // Move to next section
+    setActiveSection(formSections[formSections.findIndex(s => s.id === activeSection) + 1].id);
+    setSectionErrors({});
+  };
+
+  // Utility: Deep compare two objects
+  function deepEqual(obj1, obj2) {
+    if (obj1 === obj2) return true;
+    if (typeof obj1 !== 'object' || typeof obj2 !== 'object' || obj1 == null || obj2 == null) return false;
+    const keys1 = Object.keys(obj1);
+    const keys2 = Object.keys(obj2);
+    if (keys1.length !== keys2.length) return false;
+    for (let key of keys1) {
+      if (!keys2.includes(key)) return false;
+      if (typeof obj1[key] === 'object' && typeof obj2[key] === 'object') {
+        if (!deepEqual(obj1[key], obj2[key])) return false;
+      } else {
+        if (obj1[key] !== obj2[key]) return false;
+      }
+    }
+    return true;
+  }
+
+  return (
+    <div className="max-w-[80rem] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <motion.div
+        initial={ { opacity: 0, y: 20 } }
+        animate={ { opacity: 1, y: 0 } }
+        className="flex flex-col justify-center items-center"
+      >
+        <h1 className="text-xl font-bold text-gray-900 mb-4">
+          { !isLoggedIn ? 'Add Business Form' : 'Edit Business Details' }
+        </h1>
+        <h2 className="text-4xl font-light text-center text-gray-800 mb-2">
+          { !isLoggedIn ? 'MSME Registration' : 'Update your business details' }
+        </h2>
+        <p className="text-gray-600 mb-8 text-center max-w-3xl">
+          { !isLoggedIn
+            ? 'Use the application form below to list your business on the CEEC MSME platform. Please note that all registration applications are subject to review and approval by the system administrator prior to publication on this platform'
+            : 'Update your business information to keep your profile current and accurate. Make sure all details are up to date.' }
+        </p>
+      </motion.div>
+
+      <div className="mb-8">
+        <div className="flex justify-between items-start w-full max-w-4xl mx-auto">
+          { formSections.map( ( section, index ) => {
+            const isActive = activeSection === section.id;
+            const isCompleted = formSections.findIndex( s => s.id === activeSection ) > index;
+            return (
+              <div key={ section.id } className="flex items-center w-full">
+                <button
+                  type="button"
+                  onClick={ async () => {
+                    const errors = await validateSection(activeSection);
+                    setSectionErrors(errors);
+                    if (Object.keys(errors).length > 0) {
+                      toast.error('Invalid fields in this section.');
+                      return;
+                    }
+                    setActiveSection( section.id )
+                  }}
+                  className={ `flex flex-col items-center focus:outline-none group w-full` }
+                  tabIndex={ 0 }
+                >
+                  <span
+                    className={ `flex items-center justify-center rounded-full border-2 transition-all duration-300 mb-2
+                      ${isActive ? 'bg-primary text-white border-primary scale-110 shadow-lg' :
+                        isCompleted ? 'bg-green-500 text-white border-green-500' :
+                          'bg-gray-200 text-gray-500 border-gray-300'}
+                      w-10 h-10 md:w-12 md:h-12 text-lg md:text-xl font-bold
+                    `}
+                  >
+                    { index + 1 }
+                  </span>
+                  <span
+                    className={ `text-xs md:text-sm font-medium transition-colors duration-300
+                      ${isActive ? 'text-primary font-bold' :
+                        isCompleted ? 'text-green-600' :
+                          'text-gray-500 group-hover:text-primary'}
+                    `}
+                  >
+                    { section.label }
+                  </span>
+                </button>
+                { index < formSections.length - 1 && (
+                  <div className="flex-1 h-1 mx-2 md:mx-4 transition-all duration-300">
+                    <div className={ `h-1 rounded-full transition-all duration-300
+                      ${isCompleted ? 'bg-green-500' : isActive ? 'bg-primary/60' : 'bg-gray-200'}` }
+                    ></div>
+                  </div>
+                ) }
+              </div>
+            );
+          } ) }
+        </div>
+      </div>
+
+      <form className="space-y-8">
+        <motion.div
+          initial={ { opacity: 0, x: -20 } }
+          animate={ { opacity: 1, x: 0 } }
+          transition={ { duration: 0.5 } }
+          className="bg-white shadow-lg rounded-xl p-8"
+        >
+          { activeSection === 'business' && (
+            <div className="space-y-8">
+              { renderSection( 'basic', 'Basic Information',
+                <div className="flex flex-col w-full gap-6">
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <label htmlFor="organizationName" className="block text-sm font-medium text-gray-700 mb-1">
+                      Company/Organization Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="organizationName"
+                      name="organizationName"
+                      maxLength={50}
+                      value={formData.organizationName}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      placeholder="Enter organization name"
+                    />
+                    <div className='flex items-center justify-between'>
+                      {sectionErrors.organizationName && (
+                        <p className="mt-1 text-xs text-red-600">{sectionErrors.organizationName}</p>
+                      )}
+                      <div className={`${formData.organizationName.length == 50 ? "text-green-600" : "text-gray-500"} text-xs text-right mt-1`}>
+                        {formData.organizationName.length} / 50 characters
+                      </div>
+                    </div>
+                  </motion.div>
+                  <motion.div
+                    whileHover={ { scale: 1.02 } }
+                    transition={ { duration: 0.2 } }
+                  >
+                    <label htmlFor="companyDescription" className="block text-sm font-medium text-gray-700 mb-1">
+                      Brief Company Description *
+                    </label>
+                    <textarea
+                      id="companyDescription"
+                      name="companyDescription"
+                      value={ formData.companyDescription }
+                      maxLength={1000}
+                      required
+                      onChange={ handleInputChange }
+                      className={ `w-full px-4 py-3 border ${wordCount > 0 && wordCount < MIN_WORDS ? 'border-yellow-500' : 'border-gray-300'} rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[100px] transition-all duration-200` }
+                      placeholder="Describe your company"
+                    />
+                    <div className="mt-1 flex items-center justify-between">
+                      { validationErrors.companyDescription && (
+                        <p className="mt-1 text-xs text-yellow-600">{ validationErrors.companyDescription }</p>
+                      ) }
+                      <p className={ `text-xs ${wordCount >= MIN_WORDS ? 'text-green-600' : wordCount > 0 ? 'text-yellow-600' : 'text-gray-500'}` }>
+                        { wordCount } / 1000 characters
+                      </p>
+                    </div>
+                    {sectionErrors.companyDescription && (
+                      <p className="mt-1 text-xs text-red-600">{sectionErrors.companyDescription}</p>
+                    )}
+                  </motion.div>
+                </div>
+              ) }
+
+              { renderSection( 'details', 'Business Details',
+                <div className="space-y-6">
+                  <div className='flex items-center justify-between gap-6'>
+                    <motion.div
+                      whileHover={ { scale: 1.02 } }
+                      transition={ { duration: 0.2 } }
+                      className='flex-1'
+                    >
+                      <label htmlFor="businessCategoryName" className="block text-sm font-medium text-gray-700 mb-1">
+                        Business Category *
+                      </label>
+                      <select
+                        id="businessCategoryName"
+                        name="businessCategoryName"
+                        value={ formData.businessCategoryName }
+                        onChange={ handleInputChange }
+                        required
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      >
+                        <option value="" disabled >Select Category</option>
+                        { categories.map( category => (
+                          <option key={ category.id } value={ category.name }>
+                            { category.name }
+                          </option>
+                        ) ) }
+                      </select>
+                      {sectionErrors.businessCategoryName && (
+                        <p className="mt-1 text-xs text-red-600">{sectionErrors.businessCategoryName}</p>
+                      )}
+                    </motion.div>
+
+                    <motion.div
+                      whileHover={ { scale: 1.02 } }
+                      transition={ { duration: 0.2 } }
+                      className='flex-1'
+                    >
+                      <label htmlFor="businessSubCategoryId" className="block text-sm font-medium text-gray-700 mb-1">
+                        Business Sub-Category {subCategories.length > 0 && "*"}
+                      </label>
+                      <select
+                        id="businessSubCategoryId"
+                        name="businessSubCategoryId"
+                        value={ formData.businessSubCategoryId }
+                        onChange={ handleInputChange }
+                        required
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      >
+                        <option value="" disabled >Select Sub-Category</option>
+                        { subCategories.length !== 0 ?
+                          ( subCategories.map( category => (
+                            <option key={ category.id } value={ category.id }>
+                              { category.name }
+                            </option>
+                          ) ) ) : (
+                            <option value="" disabled>No Sub-Category Available</option>
+                          )
+                        }
+                      </select>
+                      {sectionErrors.businessSubCategoryId && (
+                        <p className="mt-1 text-xs text-red-600">{sectionErrors.businessSubCategoryId}</p>
+                      )}
+                    </motion.div>
+                  </div>
+
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <motion.div
+                      whileHover={ { scale: 1.02 } }
+                      transition={ { duration: 0.2 } }
+                    >
+                      <label htmlFor="servicesOffered" className="block text-sm font-medium text-gray-700 mb-1">
+                        Service(s) Offered
+                      </label>
+                      <textarea
+                        id="servicesOffered"
+                        name="servicesOffered"
+                        maxLength={300}
+                        value={ formData.servicesOffered }
+                        onChange={ handleInputChange }
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[100px] transition-all duration-200"
+                        placeholder="Describe your services"
+                      />
+                    </motion.div>
+
+                    <motion.div
+                      whileHover={ { scale: 1.02 } }
+                      transition={ { duration: 0.2 } }
+                    >
+                      <label htmlFor="productsOffered" className="block text-sm font-medium text-gray-700 mb-1">
+                        Product(s) Offered
+                      </label>
+                      <textarea
+                        id="productsOffered"
+                        name="productsOffered"
+                        maxLength={300}
+                        value={ formData.productsOffered }
+                        onChange={ handleInputChange }
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[100px] transition-all duration-200"
+                        placeholder="List your products"
+                      />
+                    </motion.div>
+                      {(validationErrors.productsOffered ||validationErrors.servicesOffered) && (
+                        <>
+                        <p className="mt-1 text-xs text-yellow-600">{ validationErrors.servicesOffered }</p>
+                        <p className="mt-1 text-xs text-yellow-600">{ validationErrors.productsOffered }</p>
+                        </>
+                      )} 
+                     <span className='text-yellow-600 text-xs md:col-span-2'>Note: Put a comma between each type of service and product offered. </span>
+                  </div>
+                </div>
+              ) }
+
+              { renderSection( 'status', 'Business Status',
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <motion.div
+                    whileHover={ { scale: 1.02 } }
+                    transition={ { duration: 0.2 } }
+                  >
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Are you a registered business? <span className='text-lg'>*</span>
+                    </label>
+                    <div className="flex space-x-6">
+                      <label className="inline-flex items-center group">
+                        <input
+                          type="radio"
+                          name="isRegistered"
+                          value="registered"
+                          checked={ formData.isRegistered === 'registered' }
+                          onChange={ handleInputChange }
+                          className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 transition-all duration-200 group-hover:border-blue-500"
+                        />
+                        <span className="ml-2 text-gray-700 group-hover:text-gray-900">Registered</span>
+                      </label>
+                      <label className="inline-flex items-center group">
+                        <input
+                          type="radio"
+                          name="isRegistered"
+                          value="unregistered"
+                          checked={ formData.isRegistered === 'unregistered' }
+                          onChange={ handleInputChange }
+                          className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 transition-all duration-200 group-hover:border-blue-500"
+                        />
+                        <span className="ml-2 text-gray-700 group-hover:text-gray-900">Unregistered</span>
+                      </label>
+                    </div>
+                    {sectionErrors.isRegistered && (
+                      <p className="mt-1 text-xs text-red-600">{sectionErrors.isRegistered}</p>
+                    )}
+                  </motion.div>
+
+                  <motion.div
+                    whileHover={ { scale: 1.02 } }
+                    transition={ { duration: 0.2 } }
+                  >
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      PWD/People Living With Disability Owned? <span className='text-lg'>*</span>
+                    </label>
+                    <div className="flex space-x-6">
+                      <label className="inline-flex items-center group">
+                        <input
+                          type="radio"
+                          name="isDisabilityOwned"
+                          value="yes"
+                          checked={ formData.isDisabilityOwned === 'yes' }
+                          onChange={ handleInputChange }
+                          className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 transition-all duration-200 group-hover:border-blue-500"
+                        />
+                        <span className="ml-2 text-gray-700 group-hover:text-gray-900">Yes</span>
+                      </label>
+                      <label className="inline-flex items-center group">
+                        <input
+                          type="radio"
+                          name="isDisabilityOwned"
+                          value="no"
+                          checked={ formData.isDisabilityOwned === 'no' }
+                          onChange={ handleInputChange }
+                          className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 transition-all duration-200 group-hover:border-blue-500"
+                        />
+                        <span className="ml-2 text-gray-700 group-hover:text-gray-900">No</span>
+                      </label>
+                    </div>
+                    {sectionErrors.isDisabilityOwned && (
+                      <p className="mt-1 text-xs text-red-600">{sectionErrors.isDisabilityOwned}</p>
+                    )}
+                  </motion.div>
+
+                  <motion.div
+                    whileHover={ { scale: 1.02 } }
+                    transition={ { duration: 0.2 } }
+                    className="md:col-span-3"
+                  >
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Ownership Type <span className='text-lg'>*</span>
+                    </label>
+                    <div className="flex space-x-6 mb-4">
+                      <label className="inline-flex items-center group">
+                        <input
+                          type="radio"
+                          name="ownershipType"
+                          value="individual"
+                          checked={ formData.ownershipType === 'individual' }
+                          onChange={ handleOwnershipTypeChange }
+                          className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 transition-all duration-200 group-hover:border-blue-500"
+                        />
+                        <span className="ml-2 text-gray-700 group-hover:text-gray-900">Individual</span>
+                      </label>
+                      <label className="inline-flex items-center group">
+                        <input
+                          type="radio"
+                          name="ownershipType"
+                          value="partnership"
+                          checked={ formData.ownershipType === 'partnership' }
+                          onChange={ handleOwnershipTypeChange }
+                          className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 transition-all duration-200 group-hover:border-blue-500"
+                        />
+                        <span className="ml-2 text-gray-700 group-hover:text-gray-900">Partnership</span>
+                      </label>
+                    </div>
+                    {sectionErrors.ownershipType && (
+                      <p className="mt-1 text-xs text-red-600">{sectionErrors.ownershipType}</p>
+                    )}
+
+                    {/* Owner(s) Gender Section */}
+                    {formData.ownershipType && (
+                      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                        <label className="block text-sm font-medium text-gray-700 mb-3">
+                          Owner(s) Gender? <span className='text-lg'>*</span>
+                        </label>
+                        {formData.owners.map((owner, index) => (
+                          <div key={index} className="flex items-center gap-4 mb-3">
+                            <span className="text-sm text-gray-600 w-20">Owner {index + 1}:</span>
+                            <div className="flex space-x-4">
+                              <label className="inline-flex items-center">
+                                <input
+                                  type="radio"
+                                  name={`owner-gender-${index}`}
+                                  value="Male"
+                                  checked={owner.gender === 'Male'}
+                                  onChange={(e) => handleOwnerGenderChange(index, e.target.value)}
+                                  className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                />
+                                <span className="ml-2 text-gray-700">Male</span>
+                              </label>
+                              <label className="inline-flex items-center">
+                                <input
+                                  type="radio"
+                                  name={`owner-gender-${index}`}
+                                  value="Female"
+                                  checked={owner.gender === 'Female'}
+                                  onChange={(e) => handleOwnerGenderChange(index, e.target.value)}
+                                  className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                />
+                                <span className="ml-2 text-gray-700">Female</span>
+                              </label>
+                            </div>
+                            {formData.ownershipType === 'partnership' && index >= 2 && (
+                              <button
+                                type="button"
+                                onClick={() => removeOwner(index)}
+                                className="ml-2 p-1 text-red-600 hover:bg-red-50 rounded"
+                              >
+                                <FiX className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        {formData.ownershipType === 'partnership' && formData.owners.length < 5 && (
+                          <button
+                            type="button"
+                            onClick={addOwner}
+                            className="mt-2 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg flex items-center gap-2"
+                          >
+                            <FiPlus className="h-4 w-4" />
+                            Add Owner (Max 5)
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </motion.div>
+                </div>
+              ) }
+
+              { renderSection( 'financial', 'Company Information',
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <motion.div
+                    whileHover={ { scale: 1.02 } }
+                    transition={ { duration: 0.2 } }
+                  >
+                    <label htmlFor="annualTurnover" className="block text-sm font-medium text-gray-700 mb-1">
+                      Annual Financial Turnover <span className='text-lg'>*</span>
+                    </label>
+                    <select
+                      id="annualTurnover"
+                      name="annualTurnover"
+                      value={ formData.annualTurnover }
+                      onChange={ handleInputChange }
+                      className="w-full px-6 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    >
+                      <option value="" disabled >Select Turnover Range</option>
+                      <option value="micro">Micro: 0 - 60,000 SZL</option>
+                      <option value="small">Small: 60,000 - 3,000,000 SZL</option>
+                      <option value="medium">Medium: 3,000,000 - 8,000,000 SZL</option>
+                    </select>
+                    {sectionErrors.annualTurnover && (
+                      <p className="mt-1 text-xs text-red-600">{sectionErrors.annualTurnover}</p>
+                    )}
+                  </motion.div>
+
+                  <motion.div
+                    whileHover={ { scale: 1.02 } }
+                    transition={ { duration: 0.2 } }
+                  >
+                    <label htmlFor="yearOfEstablishment" className="block text-sm font-medium text-gray-700 mb-1">
+                      Year of Establishment
+                    </label>
+                    <input
+                      type="number"
+                      id="yearOfEstablishment"
+                      name="yearOfEstablishment"
+                      value={ formData.yearOfEstablishment }
+                      onChange={ handleInputChange }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      placeholder="Enter year"
+                    />
+                  </motion.div>
+
+                  <motion.div
+                    whileHover={ { scale: 1.02 } }
+                    transition={ { duration: 0.2 } }
+                  >
+                    <label htmlFor="numberOfEmployees" className="block text-sm font-medium text-gray-700 mb-1">
+                      Number of Employees
+                    </label>
+                    <input
+                      type="number"
+                      id="numberOfEmployees"
+                      name="numberOfEmployees"
+                      value={ formData.numberOfEmployees }
+                      onChange={ handleInputChange }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      placeholder="Enter number of employees"
+                    />
+                  </motion.div>
+                </div>
+              ) }
+
+              { renderSection( 'contact', 'Contact Information',
+                <div className={ `grid grid-cols-1 ${isLoggedIn ? "md:grid-cols-2" : "md:grid-cols-3"} gap-6` }>
+                  <motion.div
+                    whileHover={ { scale: 1.02 } }
+                    transition={ { duration: 0.2 } }
+                  >
+                    <label htmlFor="emailAddress" className="block text-sm font-medium text-gray-700 mb-1">
+                      Email Address *
+                    </label>
+
+                    <div className="relative">
+                      <input
+                        type="email"
+                        id="emailAddress"
+                        name="emailAddress"
+                        value={ formData.emailAddress }
+                        onChange={ handleInputChange }
+                        className={ `w-full px-4 py-3 border ${validationErrors.emailAddress ? 'border-red-500' : 'border-gray-300'} rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200` }
+                        placeholder="Enter email address"
+                      />
+                      {isCheckingEmail && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                        </div>
+                      )}
+                    </div>
+                    {sectionErrors.emailAddress && (
+                      <p className="mt-1 text-xs text-red-600">{sectionErrors.emailAddress}</p>
+                    )}
+                    { validationErrors.emailAddress && (
+                      <p className="mt-1 text-sm text-red-600">{ validationErrors.emailAddress }</p>
+                    ) }
+                    {isLoggedIn && initialFormData && formData.emailAddress === initialFormData.emailAddress && (
+                      <p className="mt-1 text-xs text-gray-500">Using your existing email address</p>
+                    )}
+                  </motion.div>
+
+                  <motion.div
+                    whileHover={ { scale: 1.02 } }
+                    transition={ { duration: 0.2 } }
+                    className={ `${isLoggedIn && "hidden"}` }
+                  >
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                      Password *
+                    </label>
+                    <input
+                      type="text"
+                      id="password"
+                      name="password"
+                      value={ formData.password }
+                      onChange={ handleInputChange }
+                      className={ `w-full px-4 py-3 border ${validationErrors.password ? 'border-red-500' : 'border-gray-300'} rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200` }
+                      placeholder="Enter your password"
+                    />
+                    {sectionErrors.password && (
+                      <p className="mt-1 text-xs text-red-600">{sectionErrors.password}</p>
+                    )}
+                    { validationErrors.password && (
+                      <p className="mt-1 text-sm text-red-600">{ validationErrors.password }</p>
+                    ) }
+                  </motion.div>
+
+                  <motion.div
+                    whileHover={ { scale: 1.02 } }
+                    transition={ { duration: 0.2 } }
+                  >
+                    <label htmlFor="contactNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                      Contact Number
+                    </label>
+                    <input
+                      type="text"
+                      id="contactNumber"
+                      name="contactNumber"
+                      value={ formData.contactNumber }
+                      onChange={ handleInputChange }
+                      maxLength={ 8 }
+                      pattern="[0-9]*"
+                      inputMode="numeric"
+                      className={ `w-full px-4 py-3 border ${validationErrors.contactNumber ? 'border-red-500' : 'border-gray-300'} rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200` }
+                      placeholder="Enter contact number"
+                    />
+                    { validationErrors.contactNumber && (
+                      <p className="mt-1 text-sm text-red-600">{ validationErrors.contactNumber }</p>
+                    ) }
+                  </motion.div>
+                  <span className='text-yellow-600 text-xs md:col-span-2'>Note: This email address will be your user ID to log into the system.</span>
+                </div>
+              ) }
+
+              { renderSection( 'address', 'Address Information',
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <motion.div
+                    whileHover={ { scale: 1.02 } }
+                    transition={ { duration: 0.2 } }
+                  >
+                    <label htmlFor="streetAddress" className="block text-sm font-medium text-gray-700 mb-1">
+                      Street Address
+                    </label>
+                    <input
+                      type="text"
+                      id="streetAddress"
+                      name="streetAddress"
+                      value={ formData.streetAddress }
+                      onChange={ handleInputChange }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      placeholder="Enter street address"
+                    />
+                  </motion.div>
+
+                  <motion.div
+                    whileHover={ { scale: 1.02 } }
+                    transition={ { duration: 0.2 } }
+                  >
+                    <label htmlFor="town" className="block text-sm font-medium text-gray-700 mb-1">
+                      Town
+                    </label>
+                    <input
+                      type="text"
+                      id="town"
+                      name="town"
+                      value={ formData.town }
+                      onChange={ handleInputChange }
+                      placeholder="Enter town"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    />
+                  </motion.div>
+
+                  <motion.div
+                    whileHover={ { scale: 1.02 } }
+                    transition={ { duration: 0.2 } }
+                  >
+                    <label htmlFor="region" className="block text-sm font-medium text-gray-700 mb-1">
+                      Region
+                    </label>
+                    <select
+                      id="region"
+                      name="region"
+                      value={ formData.region }
+                      onChange={ handleInputChange }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    >
+                      <option value="">Select Region</option>
+                      <option value="Hhohho">Hhohho</option>
+                      <option value="Lubombo">Lubombo</option>
+                      <option value="Manzini">Manzini</option>
+                      <option value="Shiselweni">Shiselweni</option>
+                    </select>
+                  </motion.div>
+
+                  <motion.div
+                    whileHover={ { scale: 1.02 } }
+                    transition={ { duration: 0.2 } }
+                  >
+                    <label htmlFor="inkhundla" className="block text-sm font-medium text-gray-700 mb-1">
+                      Inkhundla *
+                    </label>
+                    <input
+                      type="text"
+                      id="inkhundla"
+                      name="inkhundla"
+                      value={ formData.inkhundla }
+                      onChange={ handleInputChange }
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      placeholder="Enter inkhundla"
+                    />
+                    {sectionErrors.inkhundla && (
+                      <p className="mt-1 text-xs text-red-600">{sectionErrors.inkhundla}</p>
+                    )}
+                  </motion.div>
+
+                  <motion.div
+                    whileHover={ { scale: 1.02 } }
+                    transition={ { duration: 0.2 } }
+                  >
+                    <label htmlFor="ruralUrbanClassification" className="block text-sm font-medium text-gray-700 mb-1">
+                      Rural Urban Classification *
+                    </label>
+                    <select
+                      id="ruralUrbanClassification"
+                      name="ruralUrbanClassification"
+                      value={ formData.ruralUrbanClassification }
+                      onChange={ handleInputChange }
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    >
+                      <option value="">Select Classification</option>
+                      <option value="Rural">Rural</option>
+                      <option value="Urban">Urban</option>
+                      <option value="Semi Urban">Semi Urban</option>
+                    </select>
+                    {sectionErrors.ruralUrbanClassification && (
+                      <p className="mt-1 text-xs text-red-600">{sectionErrors.ruralUrbanClassification}</p>
+                    )}
+                  </motion.div>
+
+                  <div className='flex items-center gap-4'>
+                    <motion.div
+                      whileHover={ { scale: 1.02 } }
+                      transition={ { duration: 0.2 } }
+                      className='w-1/2'
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <label htmlFor="latitude" className="block text-sm font-medium text-gray-700">
+                          Latitude
+                        </label>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onMouseEnter={ () => setShowCoordinatesHelp( true ) }
+                            onMouseLeave={ () => setShowCoordinatesHelp( false ) }
+                            className="text-gray-400 hover:text-primary focus:outline-none"
+                          >
+                            <FiHelpCircle className="h-4 w-4" />
+                          </button>
+                          { showCoordinatesHelp && (
+                            <div className="absolute bottom-8 z-10 w-72 p-3 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg">
+                              <h4 className="font-medium text-sm text-gray-900 mb-1">How to get coordinates:</h4>
+                              <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
+                                <li>Go to Google Maps (maps.google.com)</li>
+                                <li>Search for your business location</li>
+                                <li>Right-click on the exact location</li>
+                                <li>Select &quot;What&apos;s here?&quot;</li>
+                                <li>Copy the coordinates from the popup</li>
+                                <li>First number is latitude, second is longitude</li>
+                              </ol>
+                            </div>
+                          ) }
+                        </div>
+                      </div>
+                      <input
+                        type="number"
+                        step="any"
+                        id="latitude"
+                        name="latitude"
+                        value={ formData.latitude }
+                        onChange={ handleInputChange }
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                        placeholder="Enter latitude"
+                      />
+                    </motion.div>
+
+                    <motion.div
+                      whileHover={ { scale: 1.02 } }
+                      transition={ { duration: 0.2 } }
+                      className='w-1/2'
+                    >
+                      <label htmlFor="longitude" className="block text-sm font-medium text-gray-700 mb-1">
+                        Longitude
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        id="longitude"
+                        name="longitude"
+                        value={ formData.longitude }
+                        onChange={ handleInputChange }
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                        placeholder="Enter longitude"
+                      />
+                    </motion.div>
+                  </div>
+                </div>
+              ) }
+            </div>
+          ) }
+
+          { activeSection === 'primaryContact' && (
+            <div className="space-y-8">
+              <div className="flex flex-col w-full gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <motion.div whileHover={ { scale: 1.02 } } transition={ { duration: 0.2 } }>
+                    <label htmlFor="primaryContactFirstName" className="block text-sm font-medium text-gray-700 mb-1">
+                      First Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="primaryContactFirstName"
+                      name="primaryContactFirstName"
+                      value={ formData.primaryContactFirstName }
+                      onChange={ handleInputChange }
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      placeholder="First"
+                    />
+                    {sectionErrors.primaryContactFirstName && (
+                      <p className="mt-1 text-xs text-red-600">{sectionErrors.primaryContactFirstName}</p>
+                    )}
+                  </motion.div>
+                  <motion.div whileHover={ { scale: 1.02 } } transition={ { duration: 0.2 } }>
+                    <label htmlFor="primaryContactLastName" className="block text-sm font-medium text-gray-700 mb-1">
+                      Last Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="primaryContactLastName"
+                      name="primaryContactLastName"
+                      value={ formData.primaryContactLastName }
+                      onChange={ handleInputChange }
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      placeholder="Last"
+                    />
+                    {sectionErrors.primaryContactLastName && (
+                      <p className="mt-1 text-xs text-red-600">{sectionErrors.primaryContactLastName}</p>
+                    )}
+                  </motion.div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <motion.div whileHover={ { scale: 1.02 } } transition={ { duration: 0.2 } }>
+                    <label htmlFor="telephoneNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                      Telephone Number
+                    </label>
+                    <input
+                      type="text"
+                      id="telephoneNumber"
+                      name="telephoneNumber"
+                      value={ formData.telephoneNumber }
+                      onChange={ handleInputChange }
+                      maxLength={ 8 }
+                      pattern="[0-9]*"
+                      inputMode="numeric"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      placeholder="Telephone Number"
+                    />
+                    {sectionErrors.telephoneNumber && (
+                      <p className="mt-1 text-xs text-red-600">{sectionErrors.telephoneNumber}</p>
+                    )}
+                  </motion.div>
+                  <motion.div whileHover={ { scale: 1.02 } } transition={ { duration: 0.2 } }>
+                  <label htmlFor="primaryContactNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                    Contact Number *
+                  </label>
+                  <input
+                    type="text"
+                    id="primaryContactNumber"
+                    name="primaryContactNumber"
+                    value={ formData.primaryContactNumber }
+                    onChange={ handleInputChange }
+                    maxLength={ 8 }
+                    pattern="[0-9]*"
+                    inputMode="numeric"
+                    className={ `w-full px-4 py-3 border ${validationErrors.primaryContactNumber ? 'border-red-500' : 'border-gray-300'} rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200` }
+                    placeholder="Contact Number"
+                  />
+                  {sectionErrors.primaryContactNumber && (
+                    <p className="mt-1 text-xs text-red-600">{sectionErrors.primaryContactNumber}</p>
+                  )}
+                  { validationErrors.primaryContactNumber && (
+                    <p className="mt-1 text-sm text-red-600">{ validationErrors.primaryContactNumber }</p>
+                  ) }
+                </motion.div>
+                </div>
+                <motion.div whileHover={ { scale: 1.02 } } transition={ { duration: 0.2 } }>
+                  <label htmlFor="primaryContactEmail" className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    id="primaryContactEmail"
+                    name="primaryContactEmail"
+                    value={ formData.primaryContactEmail }
+                    onChange={ handleInputChange }
+                    className={ `w-full px-4 py-3 border ${validationErrors.primaryContactEmail ? 'border-red-500' : 'border-gray-300'} rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200` }
+                    placeholder="Email"
+                  />
+                  {/* {sectionErrors.primaryContactEmail && (
+                    <p className="mt-1 text-xs text-red-600">{sectionErrors.primaryContactEmail}</p>
+                  )} */}
+                  { validationErrors.primaryContactEmail && (
+                    <p className="mt-1 text-sm text-red-600">{ validationErrors.primaryContactEmail }</p>
+                  ) }
+                </motion.div>
+              </div>
+            </div>
+          ) }
+
+          { activeSection === 'directors' && (
+            <div className="space-y-6">
+              
+              { formData.directors.map( ( director, index ) => (
+                <motion.div
+                  key={ index }
+                  initial={ { opacity: 0, y: 20 } }
+                  animate={ { opacity: 1, y: 0 } }
+                  transition={ { delay: index * 0.1 } }
+                  className="bg-gray-50 p-6 rounded-lg relative"
+                >
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-lg font-medium text-gray-900">Director { index + 1 }</h4>
+                    { index > 0 && (
+                      <button
+                        type="button"
+                        onClick={ () => removeDirector( index ) }
+                        className="p-1 rounded-full bg-primary/20 hover:bg-primary/30 text-primary transition-colors duration-200 cursor-pointer"
+                        title="Remove director"
+                      >
+                        <FiX className="h-5 w-5" />
+                      </button>
+                    ) }
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                      <input
+                        type="text"
+                        value={ director.firstName }
+                        onChange={ ( e ) => handleDirectorChange( index, 'firstName', e.target.value ) }
+                        required
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                        placeholder="Enter first name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                      <input
+                        type="text"
+                        value={ director.lastName }
+                        onChange={ ( e ) => handleDirectorChange( index, 'lastName', e.target.value ) }
+                        required
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                        placeholder="Enter last name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+                      <select
+                        value={ director.age }
+                        onChange={ ( e ) => handleDirectorChange( index, 'age', e.target.value ) }
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      >
+                        <option value="">Select Age Range</option>
+                        <option value="18-25">18-25</option>
+                        <option value="25-40">25-40</option>
+                        <option value="40+">40+</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+                      <div className="flex flex-col md:flex-row gap-2">
+                        {['male', 'female', 'other'].map((genderOption) => (
+                          <label key={genderOption} className="inline-flex items-center">
+                            <input
+                              type="radio"
+                              name={`gender-${index}`}
+                              value={genderOption}
+                              checked={director.gender === genderOption}
+                              onClick={() => {
+                                // If already selected, deselect it
+                                if (director.gender === genderOption) {
+                                  handleDirectorChange(index, 'gender', '');
+                                }
+                              }}
+                              onChange={(e) => handleDirectorChange(index, 'gender', e.target.value)}
+                              className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 transition-all duration-200"
+                            />
+                            <span className="ml-2 text-gray-700 capitalize">{genderOption}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                   <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Highest Qualification</label>
+                    <select
+                      value={director.qualification}
+                      onChange={(e) => handleDirectorChange(index, 'qualification', e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    >
+                      <option value="">Select Highest Qualification</option>
+                      <option value="Highschool diploma">High School Diploma</option>
+                      <option value="Undergraduate">Undergraduate</option>
+                      <option value="Postgraduate/Masters">Postgraduate/Masters</option>
+                      <option value="PHD">PHD</option>
+                    </select>
+                    </div>
+                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nationality *</label>
+                    <div className="flex space-x-6">
+                      <label className="inline-flex items-center group">
+                        <input
+                          type="radio"
+                          name={`nationality-${index}`}
+                          value="Swazi"
+                          checked={director.nationality === 'Swazi'}
+                          onChange={(e) => handleDirectorChange(index, 'nationality', e.target.value)}
+                          className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 transition-all duration-200"
+                        />
+                        <span className="ml-2 text-gray-700">Swazi</span>
+                      </label>
+                      <label className="inline-flex items-center group">
+                        <input
+                          type="radio"
+                          name={`nationality-${index}`}
+                          value="Non Swazi"
+                          checked={director.nationality === 'Non Swazi'}
+                          onChange={(e) => handleDirectorChange(index, 'nationality', e.target.value)}
+                          className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 transition-all duration-200"
+                        />
+                        <span className="ml-2 text-gray-700">Non Swazi</span>
+                      </label>
+                    </div>
+                   </div>
+                  </div>
+                </motion.div>
+              ) ) }
+              { sectionErrors.directors && (
+                <p className="text-xs text-red-600 mb-2">{sectionErrors.directors}</p>
+              )}
+              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start">
+                  <div>
+                    <h4 className="text-sm font-medium text-primary mb-1">Important Notice</h4>
+                    <p className="text-sm text-primary">
+                      The director(s) information provided here will be published on our website. It is subjected to our Terms and Conditions. Please ensure all information is accurate and up-to-date.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={ addDirector }
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-primary hover:bg-primary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+              >
+                <FiPlus className="mr-2" />
+                Add More Directors
+              </button>
+            </div>
+          ) }
+
+          { activeSection === 'documents' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="businessProfile" className="block text-sm font-medium text-gray-700 mb-1">
+                    Upload Business Profile
+                  </label>
+                  <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-blue-500 transition-all duration-200">
+                    <div className="space-y-1 text-center">
+                      { isUploading.businessProfile ? (
+                        <div className="flex flex-col items-center">
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                          <p className="mt-2 text-sm text-gray-500">Uploading...</p>
+                        </div>
+                      ) : (
+                        <>
+                          <FiUpload className="mx-auto h-12 w-12 text-gray-400" />
+                          <div className="flex items-center justify-center text-sm text-gray-600">
+                            <label
+                              htmlFor="businessProfile"
+                              className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
+                            >
+                              <span>Upload a file</span>
+                              <input
+                                id="businessProfile"
+                                name="businessProfile"
+                                type="file"
+                                accept=".pdf"
+                                className="sr-only"
+                                onChange={ ( e ) => handleFileUpload( e, 'businessProfile' ) }
+                                disabled={ isUploading.businessProfile }
+                              />
+                            </label>
+                            <p className="pl-1"></p>
+                          </div>
+                          <p className="text-xs text-gray-500">PDF up to 10MB</p>
+                          { uploadedFiles.businessProfile && (
+                            <div className="flex items-center justify-center text-green-600">
+                              <FiCheck className="mr-1" />
+                              <span>{ uploadedFiles.businessProfile.name }</span>
+                            </div>
+                          ) }
+                        </>
+                      ) }
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="businessImage" className="block text-sm font-medium text-gray-700 mb-1">
+                    Upload Business Image
+                  </label>
+                  <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-blue-500 transition-all duration-200">
+                    <div className="space-y-1 text-center">
+                      { isUploading.businessImage ? (
+                        <div className="flex flex-col items-center">
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                          <p className="mt-2 text-sm text-gray-500">Uploading...</p>
+                        </div>
+                      ) : (
+                        <>
+                          <FiUpload className="mx-auto h-12 w-12 text-gray-400" />
+                          <div className="flex items-center justify-center text-sm text-gray-600">
+                            <label
+                              htmlFor="businessImage"
+                              className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
+                            >
+                              <span>Upload a file</span>
+                              <input
+                                id="businessImage"
+                                name="businessImage"
+                                type="file"
+                                accept="image/*"
+                                className="sr-only"
+                                onChange={ ( e ) => handleFileUpload( e, 'businessImage' ) }
+                                disabled={ isUploading.businessImage }
+                              />
+                            </label>
+                     
+                            <p className="pl-1"></p>
+                          </div>
+                          <p className="text-xs text-gray-500">PNG, JPG up to 10MB</p>
+                          { uploadedFiles.businessImage && (
+                            <div className="flex items-center justify-center text-green-600">
+                              <FiCheck className="mr-1" />
+                              <span>{ uploadedFiles.businessImage.name }</span>
+                            </div>
+                          ) }
+                        </>
+                      ) }
+                    </div>
+                  </div>
+                  <div className='text-xs mt-2 text-gray-500 text-center flex items-center justify-center'>
+                    <RiCopyrightLine className='inline-block mr-1' />
+                    <span>Please ensure the image is appropriate and does not infringe on any copyrights.</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="certificateOfIncorporation" className="block text-sm font-medium text-gray-700 mb-1">
+                    Registration Document(s)
+                  </label>
+                  <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-blue-500 transition-all duration-200">
+                    <div className="space-y-1 text-center">
+                      { isUploading.certificateOfIncorporation ? (
+                        <div className="flex flex-col items-center">
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                          <p className="mt-2 text-sm text-gray-500">Uploading...</p>
+                        </div>
+                      ) : (
+                        <>
+                          <FiUpload className="mx-auto h-12 w-12 text-gray-400" />
+                          <div className="flex items-center justify-center text-sm text-gray-600">
+                            <label
+                              htmlFor="certificateOfIncorporation"
+                              className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
+                            >
+                              <span>Upload a file</span>
+                              <input
+                                id="certificateOfIncorporation"
+                                name="certificateOfIncorporation"
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg"
+                                className="sr-only"
+                                onChange={ ( e ) => handleFileUpload( e, 'certificateOfIncorporation' ) }
+                                disabled={ isUploading.certificateOfIncorporation }
+                              />
+                            </label>
+                            <p className="pl-1"></p>
+                          </div>
+                          <p className="text-xs text-gray-500">PDF or PNG, JPG up to 10MB</p>
+                          { uploadedFiles.certificateOfIncorporation && (
+                            <div className="flex items-center justify-center text-green-600">
+                              <FiCheck className="mr-1" />
+                              <span>{ uploadedFiles.certificateOfIncorporation.name }</span>
+                            </div>
+                          ) }
+                        </>
+                      ) }
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <div className="flex items-start">
+                  <div>
+                    <h4 className="text-sm font-medium text-primary mb-1">Document Requirements</h4>
+                    <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
+                      <li>Company Profile must be in PDF format</li>
+                      <li>Business Image can be in PNG, JPG format</li>
+                      <li>Registration documents/Incorporation Certificate can be in PDF or JPEG format</li>
+                      <li>Each file should not exceed 10MB in size</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-8 flex justify-between">
+            { activeSection !== 'business' && (
+              <motion.button
+                whileHover={ { scale: 1.05 } }
+                whileTap={ { scale: 0.95 } }
+                type="button"
+                onClick={ () => setActiveSection( formSections[ formSections.findIndex( s => s.id === activeSection ) - 1 ].id ) }
+                className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+              >
+                Previous
+              </motion.button>
+            ) }
+            { activeSection !== 'documents' ? (
+              <motion.button
+                whileHover={ { scale: 1.05 } }
+                whileTap={ { scale: 0.95 } }
+                type="button"
+                onClick={ handleNextSection }
+                className="ml-auto px-6 py-3 border border-transparent rounded-lg text-white bg-primary hover:bg-primary/70 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+              >
+                Next
+              </motion.button>
+            ) : (
+              <>
+                { !isLoggedIn ? (
+                  <motion.button
+                    whileHover={ { scale: 1.05 } }
+                    whileTap={ { scale: 0.95 } }
+                    onClick={ handleSubmit }
+                    type="submit"
+                    disabled={ isUploading.businessProfile || isUploading.businessImage }
+                    className={ `ml-auto px-6 py-3 border border-transparent rounded-lg text-white ${isUploading.businessProfile || isUploading.businessImage
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-green-600 hover:bg-green-700'
+                      } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200` }
+                  >
+                    { isUploading.businessProfile || isUploading.businessImage ? 'Uploading...' : 'Submit Business Details' }
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    whileHover={ { scale: 1.05 } }
+                    whileTap={ { scale: 0.95 } }
+                    type="submit"
+                    onClick={ handleSubmit }
+                    disabled={ isUploading.businessProfile || isUploading.businessImage || (initialFormData && deepEqual(formData, initialFormData)) }
+                    className={ `ml-3 md:ml-auto px-6 py-3 border border-transparent rounded-lg text-white ${isUploading.businessProfile || isUploading.businessImage || (initialFormData && deepEqual(formData, initialFormData))
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-green-600 hover:bg-green-700'
+                      } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200` }
+                  >
+                    { isUploading.businessProfile || isUploading.businessImage ? 'Uploading...' : 'Update Business Details' }
+                  </motion.button>
+                ) }
+              </>
+            ) }
+          </div>
+        </motion.div>
+      </form>
+
+      <BusinessPreviewModal
+        isOpen={ isPreviewOpen }
+        onClose={ () => setIsPreviewOpen( false ) }
+        formData={ formData }
+        onConfirm={ handleConfirmSubmit }
+      />
+
+      <SuccessModal
+        isOpen={ isSuccessModalOpen }
+        onClose={ handleSuccessModalClose }
+      />
+    </div>
+  );
+};
+
+export default AddBusinessForm;

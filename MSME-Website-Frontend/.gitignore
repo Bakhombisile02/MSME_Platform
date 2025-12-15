@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+website.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary
+tmp/
+temp/
+*.tmp
+
+# Vercel
+.vercel

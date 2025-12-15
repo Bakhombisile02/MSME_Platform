@@ -1,0 +1,103 @@
+@import "tailwindcss";
+@tailwind utilities;
+
+html, body {
+  font-family: var(--font-montserrat);
+  color: var(--text-color);
+  margin: 0;
+  padding: 0;
+}
+
+@theme {
+  /* Custom theme colors */
+  --color-primary: oklch(34.31% 0.112 276.79); /* #2c2f71  → oklch(34.31% 0.112 276.79) */
+  --color-secondary: oklch(68.58% 0.175 142.46);   /* #4eb448 → oklch(68.58% 0.175 142.46) */
+  
+  /* Custom theme background colors */
+  --color-light: oklch(0.912 0.02 97); /* #f5f5f5 → oklch(0.912 0.02 97) */
+  --color-dark: oklch(0.222 0.032 255.3);
+
+  /* Custom theme font */
+  --font-montserrat: 'Montserrat', sans-serif;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* Responsive behavior for fixed header spacing */
+@media (max-width: 768px) {
+  .pt-32 {
+    padding-top: 8rem; /* 128px */
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .pt-32 {
+    padding-top: 9rem; /* 144px */
+  }
+}
+
+/* Fix for sticky z-index elements */
+.z-50 {
+  z-index: 50;
+}
+
+.primary-bg {
+  background-color: var(--primary-color);
+}
+
+/* Font helper classes */
+.font-montserrat {
+  font-family: var(--font-montserrat);
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* about css start */
+
+.about_bg{
+  background-image: url('../../public/images/about_us/MSME-development.avif');
+  background-size: cover;
+  background-position: center;
+}
+
+.category_bg{
+  background-image: url('../../public/images/category/25Images02.jpg');
+  background-size: cover;
+  background-position: center;
+}
+
+
+.blue-750{
+  background-color: #2e458d
+}
+.text-blue-750{
+  color: #2e458d
+}
+.bg-black-150{
+  background-color:#0a1627;
+}
+.bg-gray-450{
+  background-color: #f3f5f6;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 2px;
+}
