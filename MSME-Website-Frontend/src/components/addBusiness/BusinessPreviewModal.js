@@ -104,7 +104,11 @@ const BusinessPreviewModal = ({ isOpen, onClose, formData, onConfirm }) => {
                   {section.fields.map((field, fieldIndex) => (
                     <div key={fieldIndex} className={`space-y-1 ${field.label == "Company Description" && "col-span-2"}`}>
                       <p className="text-sm font-medium text-gray-500">{field.label}</p>
-                      <p className="text-base text-gray-900" dangerouslySetInnerHTML={{ __html: sanitizeHTML(field.value) }} ></p>
+                      {typeof field.value === 'string' ? (
+                        <p className="text-base text-gray-900" dangerouslySetInnerHTML={{ __html: sanitizeHTML(field.value) }} ></p>
+                      ) : (
+                        <p className="text-base text-gray-900">{field.value}</p>
+                      )}
                     </div>
                   ))}
                 </div>
