@@ -75,10 +75,6 @@ tmp/
 temp/
 *.tmp
 
-# Test files
-test-*.js
-*test*.js
-
 # Documentation that's not needed
 UPDATE_GMAIL_PASSWORD.md
 EMAIL_TEST_RESULTS.md
