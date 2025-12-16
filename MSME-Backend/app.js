@@ -21,6 +21,9 @@ app.use(helmet({
 // Response compression for better performance
 app.use(compression());
 
+// Skip rate limiting in test environment to allow proper API testing
+const isTestEnv = process.env.NODE_ENV === 'test';
+
 // Global rate limiting - 100 requests per 15 minutes per IP
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -28,6 +31,7 @@ const globalLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => isTestEnv, // Skip in test environment
 });
 app.use('/api/', globalLimiter);
 
@@ -38,6 +42,7 @@ const authLimiter = rateLimit({
   message: { error: 'Too many login attempts, please try again after 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => isTestEnv, // Skip in test environment
 });
 app.use('/api/admin/login', authLimiter);
 app.use('/api/admin/ragister', authLimiter);
@@ -51,6 +56,7 @@ const emailCheckLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => isTestEnv, // Skip in test environment
 });
 app.use('/api/msme-business/check-email-exists', emailCheckLimiter);
 

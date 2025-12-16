@@ -42,4 +42,15 @@ CONFIG.production = {
     logging: false
 };
 
+// Test environment configuration - uses same DB settings but can be mocked
+CONFIG.test = {
+    dialect: process.env.DB_DIALECT || 'mysql',
+    host: process.env.DB_HOST || 'localhost',
+    port: process.env.DB_PORT || '3306',
+    database: process.env.DB_NAME || 'test_db',
+    username: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    logging: false
+};
+
 module.exports = CONFIG;

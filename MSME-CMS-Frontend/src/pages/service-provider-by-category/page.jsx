@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getServiceProviderListByCategory, getServiceProviderListByCategoryId } from '../../api/user-lists';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { saveAs } from 'file-saver';
 import ServiceProviderTable from '../../components/service-provider/service-provider-table';
 
