@@ -3,6 +3,7 @@ import { getFaqList, removeFaq, updateFaq } from "../../api/faq";
 import Swal from "sweetalert2";
 import ReactQuill from "react-quill-new";
 import CustomInputField from "../CustomInputField";
+import { sanitizeHTML } from '../../utils/sanitize';
 
 const FaqTable = () => {
   const [ faqs, setFaqs ] = useState( [] );
@@ -224,7 +225,7 @@ const FaqTable = () => {
                 <div className="flex flex-col gap-2 w-full border-2 border-gray-300 rounded-lg p-4">
                   <div className='w-11/12 p-3   border'>{ item.question }</div>
                    <div className="w-full  h-[1px] bg-gray-400/20 "></div>
-                  <div className='w-11/12 p-3   border' dangerouslySetInnerHTML={ { __html: item.answer } }></div>
+                  <div className='w-11/12 p-3   border' dangerouslySetInnerHTML={ { __html: sanitizeHTML(item.answer) } }></div>
                 </div>
                 <div className='flex flex-col gap-2'>
                   <button

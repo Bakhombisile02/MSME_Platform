@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { FaUser, FaPhone, FaEnvelope, FaMapMarkerAlt } from "react-icons/fa";
+import { sanitizeHTML } from "@/utils/sanitize";
 
 const Page = () => {
   const { slug } = useParams()
@@ -135,7 +136,7 @@ const Page = () => {
                   <hr className="my-2 border-gray-200" />
                   <div>
                     <h2 className="text-primary text-xl font-semibold mb-2">{ entry.business_name }</h2>
-                    <p className="text-gray-500 min-h-20 text-sm" dangerouslySetInnerHTML={ { __html: entry.business_description } }/>
+                    <p className="text-gray-500 min-h-20 text-sm" dangerouslySetInnerHTML={ { __html: sanitizeHTML(entry.business_description) } }/>
                   </div>
                 </div>
               </div>

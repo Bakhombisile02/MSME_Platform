@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiX } from 'react-icons/fi';
+import { sanitizeHTML } from '@/utils/sanitize';
 
 const BusinessPreviewModal = ({ isOpen, onClose, formData, onConfirm }) => {
   if (!isOpen) return null;
@@ -103,7 +104,7 @@ const BusinessPreviewModal = ({ isOpen, onClose, formData, onConfirm }) => {
                   {section.fields.map((field, fieldIndex) => (
                     <div key={fieldIndex} className={`space-y-1 ${field.label == "Company Description" && "col-span-2"}`}>
                       <p className="text-sm font-medium text-gray-500">{field.label}</p>
-                      <p className="text-base text-gray-900" dangerouslySetInnerHTML={{ __html: field.value }} ></p>
+                      <p className="text-base text-gray-900" dangerouslySetInnerHTML={{ __html: sanitizeHTML(field.value) }} ></p>
                     </div>
                   ))}
                 </div>

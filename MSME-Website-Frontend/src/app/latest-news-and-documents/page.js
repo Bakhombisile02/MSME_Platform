@@ -2,6 +2,7 @@
 import Image from 'next/image';
 import React, { useEffect, useState } from 'react';
 import { getDownloadList } from '@/apis/lists-api';
+import { sanitizeHTML } from '@/utils/sanitize';
 
 export default function DownloadDocsPage () {
   const [ downloads, setDownloads ] = useState( [] );
@@ -109,7 +110,7 @@ export default function DownloadDocsPage () {
                       <td className="py-4 px-6  align-middle text-base text-gray-700">
                         <div
                           className=" "
-                          dangerouslySetInnerHTML={{ __html: row.description }}
+                          dangerouslySetInnerHTML={{ __html: sanitizeHTML(row.description) }}
                         />
                       </td>
                       <td className="py-4 px-6 align-middle text-base text-gray-700 whitespace-nowrap">

@@ -1,5 +1,22 @@
 {
+  "name": "msme-platform",
+  "version": "1.0.0",
+  "description": "MSME Platform - Monorepo management",
+  "scripts": {
+    "install:all": "cd MSME-Backend && npm install && cd ../MSME-Website-Frontend && npm install && cd ../MSME-CMS-Frontend && npm install",
+    "build:all": "cd MSME-Website-Frontend && npm run build && cd ../MSME-CMS-Frontend && npm run build",
+    "start:prod": "pm2 start ecosystem.config.js --env production",
+    "stop:prod": "pm2 stop ecosystem.config.js",
+    "restart:prod": "pm2 restart ecosystem.config.js --env production",
+    "delete:prod": "pm2 delete ecosystem.config.js",
+    "logs": "pm2 logs",
+    "logs:backend": "pm2 logs msme-backend",
+    "logs:website": "pm2 logs msme-website",
+    "logs:cms": "pm2 logs msme-cms",
+    "status": "pm2 status",
+    "monit": "pm2 monit"
+  },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "pm2": "^5.3.0"
   }
 }

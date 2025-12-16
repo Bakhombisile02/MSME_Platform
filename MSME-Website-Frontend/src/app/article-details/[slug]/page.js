@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import Subscribe from "@/components/Subscribe";
 import Partners from "@/components/Partners";
 import Link from "next/link";
+import { sanitizeHTML } from "@/utils/sanitize";
 
  
 
@@ -142,7 +143,7 @@ const Page = () => {
             />
             <div 
               className="text-[15px] leading-6 text-gray-700"
-              dangerouslySetInnerHTML={{ __html: article.description }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHTML(article.description) }}
             />
           </div>
         </div>

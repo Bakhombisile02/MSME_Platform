@@ -1,9 +1,16 @@
 const nodemailer = require('nodemailer');
 
-// Admin emails to notify on errors - configurable via environment variable
+// Admin emails to notify on errors - REQUIRED via environment variable
 const ADMIN_EMAILS = process.env.ADMIN_ERROR_EMAILS 
-    ? process.env.ADMIN_ERROR_EMAILS.split(',').map(email => email.trim())
-    : ['siyamukeladlamini1@icloud.com', 'mis@datamatics.co.sz'];
+    ? process.env.ADMIN_ERROR_EMAILS.split(',').map(email => email.trim()).filter(email => email)
+    : [];
+
+// Check if error notifications are configured
+const ERROR_NOTIFICATIONS_ENABLED = ADMIN_EMAILS.length > 0 && process.env.ADMIN_MAIL_AUTH_USER && process.env.ADMIN_MAIL_AUTH_PW;
+
+if (!ERROR_NOTIFICATIONS_ENABLED) {
+    console.warn('⚠️  Error notifications DISABLED - missing ADMIN_ERROR_EMAILS, ADMIN_MAIL_AUTH_USER, or ADMIN_MAIL_AUTH_PW');
+}
 
 // Rate limiting to prevent email spam
 const errorCache = new Map();
@@ -15,19 +22,26 @@ const ADMIN_MAIL_CONFIG = {
     port: 465,
     secure: true,
     auth: {
-        user: process.env.ADMIN_MAIL_AUTH_USER || 'siyamukeladlamini1@gmail.com',
+        user: process.env.ADMIN_MAIL_AUTH_USER || '',
         pass: process.env.ADMIN_MAIL_AUTH_PW || ''
     }
 };
 
-console.log(`Error notifications will be sent FROM: ${ADMIN_MAIL_CONFIG.auth.user}`);
-console.log(`Error notifications will be sent TO: ${ADMIN_EMAILS.join(', ')}`);
-console.log(`Rate limit: ${RATE_LIMIT_MINUTES} minutes`);
+if (ERROR_NOTIFICATIONS_ENABLED) {
+    console.log(`✅ Error notifications enabled - FROM: ${ADMIN_MAIL_CONFIG.auth.user}, TO: ${ADMIN_EMAILS.join(', ')}`);
+    console.log(`   Rate limit: ${RATE_LIMIT_MINUTES} minutes`);
+}
 
 /**
  * Send error notification email to administrators
  */
 async function sendErrorNotification(errorDetails) {
+    // Skip if notifications not configured
+    if (!ERROR_NOTIFICATIONS_ENABLED) {
+        console.log('Error notification skipped - not configured');
+        return;
+    }
+
     try {
         const {
             error,

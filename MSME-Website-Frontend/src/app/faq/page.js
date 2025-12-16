@@ -4,6 +4,7 @@ import Subscribe from "@/components/Subscribe";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { getFaqList } from '@/apis/lists-api';
+import { sanitizeHTML } from "@/utils/sanitize";
 
 const Page = () => {
   const [faqs, setFaqs] = useState([]);
@@ -78,7 +79,7 @@ const Page = () => {
                       }`}
                       style={{ transitionProperty: 'max-height, padding' }}
                     >
-                      <span dangerouslySetInnerHTML={{ __html: faq.answer }} />
+                      <span dangerouslySetInnerHTML={{ __html: sanitizeHTML(faq.answer) }} />
                     </div>
                   </div>
                 ))

@@ -88,8 +88,10 @@ GMAIL_LIMIT_INFO.md
 # Backup files
 *.backup
 *.backup_*
+*.bak
 app.js.backup_*
 
 # Database backups
+db_backups/
 *.sql
 *.sql.gz

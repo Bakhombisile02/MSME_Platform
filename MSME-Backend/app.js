@@ -44,6 +44,16 @@ app.use('/api/admin/ragister', authLimiter);
 app.use('/api/msme-business/login', authLimiter);
 app.use('/api/msme-business/forget-password', authLimiter);
 
+// Stricter rate limiting for email enumeration protection - 10 requests per 15 minutes
+const emailCheckLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/msme-business/check-email-exists', emailCheckLimiter);
+
 // CORS is now handled by Nginx - disable Express CORS to avoid duplicate headers
 // Only enable for local development
 if (process.env.NODE_ENV === 'development') {

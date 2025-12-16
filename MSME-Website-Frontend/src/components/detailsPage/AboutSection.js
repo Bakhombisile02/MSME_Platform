@@ -1,3 +1,5 @@
+import { sanitizeHTML } from '@/utils/sanitize';
+
 const AboutSection = ({ businessDetails }) => {
   // Split services and products into arrays
   const services = businessDetails?.service_offered?.split(', ') || [];
@@ -13,10 +15,10 @@ const AboutSection = ({ businessDetails }) => {
         <div className="mt-5">
         <div
             dangerouslySetInnerHTML={{
-              __html: (businessDetails?.brief_company_description || '')
+              __html: sanitizeHTML((businessDetails?.brief_company_description || '')
                 .split('\n\n')
                 .map(p => `<p>${p.trim()}</p>`)
-                .join('')
+                .join(''))
             }}
           />
 

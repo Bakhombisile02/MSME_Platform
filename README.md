@@ -45,7 +45,14 @@ cp .env.example .env
 Required variables:
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` - MySQL credentials
 - `JWT_SECRET` - Secret key for JWT tokens
-- `MAIL_AUTH_USER`, `MAIL_AUTH_PW` - SMTP credentials
+- `MAIL_AUTH_USER`, `MAIL_AUTH_PW` - SMTP credentials for app emails
+
+Optional variables (for error notifications):
+- `ADMIN_ERROR_EMAILS` - Comma-separated list of admin emails to receive error alerts (e.g., `admin@example.com,dev@example.com`)
+- `ADMIN_MAIL_AUTH_USER`, `ADMIN_MAIL_AUTH_PW` - SMTP credentials for sending error notifications
+- `ERROR_NOTIFICATION_RATE_LIMIT_MINUTES` - Rate limit for error emails (default: 15)
+
+> **Note**: Error notifications are disabled if `ADMIN_ERROR_EMAILS` is not set.
 
 #### Website Frontend (.env.local)
 ```bash
@@ -193,13 +200,67 @@ MSME_Site/
 | `npm run preview` | Preview production build |
 | `npm run lint` | Run ESLint |
 
-## 🔐 Security Features
+## � Production Deployment (Single Server)
 
-- **Rate Limiting**: 100 requests/15min (global), 5 requests/15min (auth endpoints)
+Use PM2 to manage all three apps on one cloud machine:
+
+### Setup
+
+```bash
+# Install PM2 globally
+npm install -g pm2
+
+# From root MSME_Site directory, install root package
+npm install
+
+# Install all app dependencies
+npm run install:all
+
+# Build frontend apps (required before starting)
+npm run build:all
+```
+
+### Management Commands
+
+| Command | Description |
+|---------|-------------|
+| `npm run start:prod` | Start all apps |
+| `npm run stop:prod` | Stop all apps |
+| `npm run restart:prod` | Restart all apps |
+| `npm run status` | View status of all apps |
+| `npm run logs` | View combined logs |
+| `npm run logs:backend` | View backend logs only |
+| `npm run logs:website` | View website logs only |
+| `npm run logs:cms` | View CMS logs only |
+| `npm run monit` | Real-time monitoring dashboard |
+
+### Auto-Start on Server Reboot
+
+```bash
+pm2 startup    # Generate startup script
+pm2 save       # Save current process list
+```
+
+### Production Ports
+
+| App | Port | Process |
+|-----|------|--------|
+| Backend | 3001 | `node server.js` |
+| Website | 3000 | `npm start` (Next.js) |
+| CMS | 5173 | `serve -s dist` (static server) |
+
+> **Important**: Run `npm run build:all` before `npm run start:prod` to build the frontend apps.
+
+## �🔐 Security Features
+
+- **Rate Limiting**: 100 requests/15min (global), 5 requests/15min (auth endpoints), 10 requests/15min (email check)
 - **Security Headers**: Helmet.js for XSS, CSP protection
+- **XSS Sanitization**: Backend `xss-clean` middleware + Frontend DOMPurify on all HTML renders
 - **JWT Authentication**: Configurable expiry times
 - **OTP Protection**: Brute-force protection with 5 attempts, 30-min lockout
 - **Protected Routes**: Admin routes require authentication
+- **SQL Injection Prevention**: Sequelize ORM with parameterized queries
+- **Error Notification**: Configurable admin email alerts (requires `ADMIN_ERROR_EMAILS` env var)
 
 ## 🧪 Testing
 
@@ -247,4 +308,4 @@ This project is proprietary software for the Eswatini MSME Platform.
 
 ---
 
-For detailed technical documentation, see [CLAUDE.md](CLAUDE.md) and the [copilot-instructions](.github/copilot-instructions.md).
+For detailed technical documentation, see [copilot-instructions](.github/copilot-instructions.md).

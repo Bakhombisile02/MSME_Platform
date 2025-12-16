@@ -23,7 +23,7 @@ router.post('/add',[
 
 router.post('/login',[
     body('email_address').isEmail().withMessage('Please enter a valid email'),
-    body('password'),
+    body('password').notEmpty().withMessage('Password is required'),
 ], MSMEBusinessController.loginUser);
 
 // check if email exists
