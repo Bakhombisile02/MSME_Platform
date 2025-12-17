@@ -440,21 +440,41 @@ module.exports.verifyMSME = async (req, res, next) => {
 }
 
 module.exports.searchByName = async (req, res, next) => {
+    // DEPRECATED: Use /msme-business/filters?keyword=xxx instead for better search
+    // This endpoint only searches name_of_organization field
+    // The filters endpoint searches 17+ fields including description, products, services, location
 
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
 
     const name_of_organization = req.params.name_of_organization;
 
-    // console.log("name_of_organization ==> ", name_of_organization);
-
     try {
-        const msmeInfo = await BaseRepo.getSearchByLocation(MSMEBusinessModel, name_of_organization);
-        if (!msmeInfo) {
-            return res.status(400).json({ error: 'Error fetching Business Categories' });
-        }
-        res.status(201).json(msmeInfo);
+        // Enhanced search with pagination support
+        const { count, rows } = await MSMEBusinessModel.findAndCountAll({
+            where: {
+                deletedAt: null,
+                is_verified: 2,
+                name_of_organization: {
+                    [Op.like]: '%' + name_of_organization + '%',
+                }
+            },
+            limit,
+            offset,
+            order: [['name_of_organization', 'ASC']],
+        });
+
+        // Return paginated response format matching filters API
+        res.status(200).json({
+            values: { rows, count },
+            total: count,
+            page,
+            limit,
+            totalPages: Math.ceil(count / limit),
+            // Deprecation notice in response
+            _deprecated: 'This endpoint is deprecated. Use GET /msme-business/filters?keyword=xxx for enhanced multi-field search.'
+        });
     }
     catch (error) {
         console.error(error);
@@ -580,14 +600,19 @@ module.exports.filtersAPI = async (req, res, next) => {
         whereClause.owner_gender_summary = owner_gender;
     }
 
-    // Enhanced keyword search - works like a basic search engine
+    // Enhanced keyword search - uses LIKE queries for reliability
+    // FULLTEXT indexes exist but require exact column matching
+    // Using LIKE with indexes on common columns provides good performance
     let keywordOr = {};
+    let searchTermsArray = [];
+    
     if (keyword && keyword.trim() !== '') {
-        const searchTerms = keyword.trim().toLowerCase().split(/\s+/); // Split by whitespace
-        console.log('🔍 Search terms:', searchTerms);
+        searchTermsArray = keyword.trim().toLowerCase().split(/\s+/); // Split by whitespace
+        console.log('🔍 Search terms:', searchTermsArray);
         
-        // Create search conditions for each term
-        const termConditions = searchTerms.map(term => {
+        // Create search conditions for each term using LIKE
+        // All terms must match (AND logic) but each term can match any field (OR logic)
+        const termConditions = searchTermsArray.map(term => {
             const like = '%' + term + '%';
             return {
                 [Op.or]: [
@@ -622,14 +647,11 @@ module.exports.filtersAPI = async (req, res, next) => {
         });
         
         // Use AND logic: all search terms must match (in any field)
-        // This means "IT Services Mbabane" will find businesses that mention all three words
         if (termConditions.length > 0) {
-            keywordOr = {
-                [Op.and]: termConditions
-            };
+            keywordOr = { [Op.and]: termConditions };
         }
         
-        console.log('✓ Enhanced search conditions created for', searchTerms.length, 'term(s)');
+        console.log('✓ Search conditions created for', searchTermsArray.length, 'term(s)');
     }
 
     // Sorting
@@ -641,8 +663,7 @@ module.exports.filtersAPI = async (req, res, next) => {
             case 'name_asc': order = [["name_of_organization", "ASC"]]; break;
             case 'name_desc': order = [["name_of_organization", "DESC"]]; break;
             case 'relevance': 
-                // When searching, sort by name to group similar results
-                // In a full search engine, this would use ranking algorithms
+                // For relevance, prioritize name matches then sort alphabetically
                 if (keyword && keyword.trim() !== '') {
                     order = [["name_of_organization", "ASC"]];
                 } else {
@@ -666,7 +687,30 @@ module.exports.filtersAPI = async (req, res, next) => {
         if (!msmeInfo) {
             return res.status(400).json({ error: 'Error fetching MSME Business' });
         }
-        res.status(201).json(msmeInfo);
+        
+        // Add search highlighting metadata if keyword search was performed
+        let response = msmeInfo;
+        if (searchTermsArray.length > 0 && msmeInfo.values?.rows) {
+            // Add matched fields info for highlighting on frontend
+            response = {
+                ...msmeInfo,
+                searchMeta: {
+                    terms: searchTermsArray,
+                    highlightFields: [
+                        'name_of_organization',
+                        'brief_company_description', 
+                        'product_offered',
+                        'service_offered',
+                        'town',
+                        'region',
+                        'business_category_name',
+                        'business_sub_category_name'
+                    ]
+                }
+            };
+        }
+        
+        res.status(200).json(response);
     }
     catch (error) {
         console.error(error);
@@ -875,3 +919,239 @@ module.exports.forgetPassword = async (req, res, next) => {
 // - forgetPasswordLegacy
 //
 // Use the secure POST-based methods above instead.
+
+
+// =============================================================================
+// SEARCH AUTOCOMPLETE
+// =============================================================================
+/**
+ * Get search suggestions for autocomplete
+ * Returns business names, categories, towns that match the query
+ * 
+ * @route GET /api/msme-business/autocomplete
+ * @query {string} q - Search query (min 2 characters)
+ * @query {number} limit - Max results per category (default: 5)
+ */
+module.exports.autocomplete = async (req, res) => {
+    const { q, limit = 5 } = req.query;
+    
+    if (!q || q.trim().length < 2) {
+        return res.status(200).json({ suggestions: [] });
+    }
+    
+    const searchTerm = q.trim().toLowerCase();
+    const limitNum = Math.min(parseInt(limit) || 5, 10); // Cap at 10
+    
+    try {
+        const like = `%${searchTerm}%`;
+        
+        // Get matching business names
+        const businesses = await MSMEBusinessModel.findAll({
+            where: {
+                is_verified: 2,
+                name_of_organization: { [Op.like]: like }
+            },
+            attributes: ['id', 'name_of_organization', 'business_category_name', 'town'],
+            limit: limitNum,
+            order: [['name_of_organization', 'ASC']]
+        });
+        
+        // Get unique matching categories
+        const categories = await MSMEBusinessModel.findAll({
+            where: {
+                is_verified: 2,
+                business_category_name: { [Op.like]: like }
+            },
+            attributes: [[Sequelize.fn('DISTINCT', Sequelize.col('business_category_name')), 'name']],
+            limit: limitNum
+        });
+        
+        // Get unique matching sub-categories
+        const subCategories = await MSMEBusinessModel.findAll({
+            where: {
+                is_verified: 2,
+                business_sub_category_name: { [Op.like]: like }
+            },
+            attributes: [[Sequelize.fn('DISTINCT', Sequelize.col('business_sub_category_name')), 'name']],
+            limit: limitNum
+        });
+        
+        // Get unique matching towns
+        const towns = await MSMEBusinessModel.findAll({
+            where: {
+                is_verified: 2,
+                town: { [Op.like]: like }
+            },
+            attributes: [[Sequelize.fn('DISTINCT', Sequelize.col('town')), 'name']],
+            limit: limitNum
+        });
+        
+        // Get unique matching services
+        const services = await MSMEBusinessModel.findAll({
+            where: {
+                is_verified: 2,
+                service_offered: { [Op.like]: like }
+            },
+            attributes: ['service_offered'],
+            limit: limitNum * 2 // Get more since we'll extract unique terms
+        });
+        
+        // Extract unique service keywords that match
+        const serviceKeywords = new Set();
+        services.forEach(s => {
+            if (s.service_offered) {
+                // Split by common delimiters and find matching parts
+                const parts = s.service_offered.split(/[,;\/\n]+/);
+                parts.forEach(part => {
+                    const trimmed = part.trim();
+                    if (trimmed.toLowerCase().includes(searchTerm) && trimmed.length < 50) {
+                        serviceKeywords.add(trimmed);
+                    }
+                });
+            }
+        });
+        
+        // Build suggestions array with types
+        const suggestions = [];
+        
+        // Add businesses
+        businesses.forEach(b => {
+            suggestions.push({
+                type: 'business',
+                id: b.id,
+                text: b.name_of_organization,
+                subtext: `${b.business_category_name || 'Business'}${b.town ? ` • ${b.town}` : ''}`
+            });
+        });
+        
+        // Add categories
+        categories.forEach(c => {
+            if (c.dataValues.name) {
+                suggestions.push({
+                    type: 'category',
+                    text: c.dataValues.name,
+                    subtext: 'Category'
+                });
+            }
+        });
+        
+        // Add sub-categories
+        subCategories.forEach(sc => {
+            if (sc.dataValues.name) {
+                suggestions.push({
+                    type: 'subcategory',
+                    text: sc.dataValues.name,
+                    subtext: 'Sub-category'
+                });
+            }
+        });
+        
+        // Add towns
+        towns.forEach(t => {
+            if (t.dataValues.name) {
+                suggestions.push({
+                    type: 'location',
+                    text: t.dataValues.name,
+                    subtext: 'Location'
+                });
+            }
+        });
+        
+        // Add service keywords (limited)
+        Array.from(serviceKeywords).slice(0, limitNum).forEach(s => {
+            suggestions.push({
+                type: 'service',
+                text: s,
+                subtext: 'Service'
+            });
+        });
+        
+        res.status(200).json({ 
+            suggestions,
+            query: searchTerm
+        });
+        
+    } catch (error) {
+        console.error('Autocomplete error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+
+// =============================================================================
+// POPULAR SEARCHES
+// =============================================================================
+/**
+ * Get popular/suggested search terms
+ * Returns common categories, locations, and services for search suggestions
+ * 
+ * @route GET /api/msme-business/popular-searches
+ */
+module.exports.popularSearches = async (req, res) => {
+    try {
+        // Get top categories by business count
+        const topCategories = await MSMEBusinessModel.findAll({
+            where: { is_verified: 2 },
+            attributes: [
+                'business_category_name',
+                [Sequelize.fn('COUNT', Sequelize.col('id')), 'count']
+            ],
+            group: ['business_category_name'],
+            order: [[Sequelize.literal('count'), 'DESC']],
+            limit: 6
+        });
+        
+        // Get top towns by business count
+        const topTowns = await MSMEBusinessModel.findAll({
+            where: { 
+                is_verified: 2,
+                town: { [Op.ne]: null, [Op.ne]: '' }
+            },
+            attributes: [
+                'town',
+                [Sequelize.fn('COUNT', Sequelize.col('id')), 'count']
+            ],
+            group: ['town'],
+            order: [[Sequelize.literal('count'), 'DESC']],
+            limit: 4
+        });
+        
+        // Get top regions
+        const topRegions = await MSMEBusinessModel.findAll({
+            where: { 
+                is_verified: 2,
+                region: { [Op.ne]: null, [Op.ne]: '' }
+            },
+            attributes: [
+                'region',
+                [Sequelize.fn('COUNT', Sequelize.col('id')), 'count']
+            ],
+            group: ['region'],
+            order: [[Sequelize.literal('count'), 'DESC']],
+            limit: 4
+        });
+        
+        res.status(200).json({
+            categories: topCategories.map(c => ({
+                text: c.business_category_name,
+                count: parseInt(c.dataValues.count)
+            })).filter(c => c.text),
+            locations: [
+                ...topTowns.map(t => ({
+                    text: t.town,
+                    type: 'town',
+                    count: parseInt(t.dataValues.count)
+                })),
+                ...topRegions.map(r => ({
+                    text: r.region,
+                    type: 'region',
+                    count: parseInt(r.dataValues.count)
+                }))
+            ].filter(l => l.text)
+        });
+        
+    } catch (error) {
+        console.error('Popular searches error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+};

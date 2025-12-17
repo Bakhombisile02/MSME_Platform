@@ -86,7 +86,7 @@ export default function Footer () {
                   <span className="inline-block">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={ 2 } d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
                   </span>
-                  <span>011 8765 2234</span>
+                  <a href="tel:+26876999719" className="hover:text-secondary transition">+268 7699 9719</a>
                 </li>
                 <li className="flex items-center gap-3">
                   <span className="inline-block">
@@ -103,7 +103,7 @@ export default function Footer () {
       <div className="relative max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center border-t border-white/20 pt-6 pb-2 relative">
         <p className="text-center text-base">Copyright &copy; { currentYear } MSME | Powered by MSME</p>
         <div className="flex gap-3 mt-4 md:mt-0 md:absolute md:right-0 md:bottom-2">
-          <a href="#" className="bg-white rounded-md p-2 shadow hover:scale-105 transition" aria-label="Facebook">
+          <a href="https://www.facebook.com/share/17kHhGJYKJ/" target="_blank" rel="noopener noreferrer" className="bg-white rounded-md p-2 shadow hover:scale-105 transition" aria-label="Facebook">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#2E458D"><path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z" /></svg>
           </a>
           <a href="#" className="bg-white rounded-md p-2 shadow hover:scale-105 transition" aria-label="X">

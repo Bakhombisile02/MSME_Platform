@@ -392,6 +392,200 @@ const managerEmailTemplate = (payload) =>
    </html>
    `
 
+// ==================== HELP DESK EMAIL TEMPLATES ====================
+
+// Ticket Confirmation Email (sent to customer when ticket is created)
+const ticketConfirmationEmail = (payload) =>
+    `<html>
+<head>
+    <title>Ticket Confirmation</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #2E458D; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+        .ticket-id { background: #fff; border: 2px solid #2E458D; padding: 15px; text-align: center; margin: 20px 0; border-radius: 8px; }
+        .ticket-id span { font-size: 24px; font-weight: bold; color: #2E458D; }
+        .info-box { background: #e8f4fd; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Thank You for Contacting Us!</h1>
+        </div>
+        <div class="content">
+            <p>Dear <strong>${payload.name}</strong>,</p>
+            
+            <p>We have received your support request and a ticket has been created. Our team will review your inquiry and respond as soon as possible.</p>
+            
+            <div class="ticket-id">
+                <p style="margin: 0; color: #666;">Your Ticket ID</p>
+                <span>${payload.ticket_id}</span>
+            </div>
+            
+            <div class="info-box">
+                <p style="margin: 0;"><strong>Subject:</strong> ${payload.subject}</p>
+            </div>
+            
+            <p><strong>What happens next?</strong></p>
+            <ul>
+                <li>Our support team will review your request</li>
+                <li>You will receive email updates on your ticket status</li>
+                <li>You can track your ticket status using your Ticket ID and email address</li>
+            </ul>
+            
+            <p>If you have any additional information to add, please reply to this email or use the ticket tracking feature on our website.</p>
+            
+            <p>Best regards,<br>
+            <strong>Eswatini MSME Platform Support Team</strong></p>
+        </div>
+        <div class="footer">
+            <p>This is an automated message. Please save your Ticket ID for future reference.</p>
+            <p>Eswatini MSME Platform | support@ceec-msme.com</p>
+        </div>
+    </div>
+</body>
+</html>`
+
+// Ticket Response Email (sent to customer when admin responds)
+const ticketResponseEmail = (payload) =>
+    `<html>
+<head>
+    <title>New Response to Your Ticket</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #2E458D; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+        .ticket-info { background: #e8f4fd; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .response-box { background: #fff; border-left: 4px solid #2E458D; padding: 15px; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>New Response to Your Ticket</h1>
+        </div>
+        <div class="content">
+            <p>Dear <strong>${payload.name}</strong>,</p>
+            
+            <p>There is a new response to your support ticket.</p>
+            
+            <div class="ticket-info">
+                <p style="margin: 5px 0;"><strong>Ticket ID:</strong> ${payload.ticket_id}</p>
+                <p style="margin: 5px 0;"><strong>Subject:</strong> ${payload.subject}</p>
+            </div>
+            
+            <p><strong>Response from ${payload.responder_name}:</strong></p>
+            <div class="response-box">
+                ${payload.response_message.replace(/\n/g, '<br>')}
+            </div>
+            
+            <p>If you have any further questions or need to provide additional information, please reply to this email or visit our website to track your ticket.</p>
+            
+            <p>Best regards,<br>
+            <strong>Eswatini MSME Platform Support Team</strong></p>
+        </div>
+        <div class="footer">
+            <p>Ticket Reference: ${payload.ticket_id}</p>
+            <p>Eswatini MSME Platform | support@ceec-msme.com</p>
+        </div>
+    </div>
+</body>
+</html>`
+
+// Ticket Assignment Email (sent to admin when ticket is assigned to them)
+const ticketAssignmentEmail = (payload) =>
+    `<html>
+<head>
+    <title>New Ticket Assigned</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #F59E0B; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+        .ticket-info { background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .btn { display: inline-block; background: #2E458D; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin-top: 15px; }
+        .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎫 New Ticket Assigned to You</h1>
+        </div>
+        <div class="content">
+            <p>Hello <strong>${payload.admin_name}</strong>,</p>
+            
+            <p>A support ticket has been assigned to you. Please review and respond at your earliest convenience.</p>
+            
+            <div class="ticket-info">
+                <p style="margin: 5px 0;"><strong>Ticket ID:</strong> ${payload.ticket_id}</p>
+                <p style="margin: 5px 0;"><strong>Subject:</strong> ${payload.subject}</p>
+                <p style="margin: 5px 0;"><strong>From:</strong> ${payload.customer_name}</p>
+            </div>
+            
+            <p>Please log in to the admin panel to view the full ticket details and respond.</p>
+            
+            <p>Best regards,<br>
+            <strong>MSME Support System</strong></p>
+        </div>
+        <div class="footer">
+            <p>This is an automated notification from the MSME Help Desk System</p>
+        </div>
+    </div>
+</body>
+</html>`
+
+// Ticket Status Update Email (sent to customer when status changes)
+const ticketStatusUpdateEmail = (payload) =>
+    `<html>
+<head>
+    <title>Ticket Status Update</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #10B981; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+        .status-badge { display: inline-block; padding: 8px 16px; border-radius: 20px; font-weight: bold; margin: 10px 0; }
+        .status-resolved { background: #10B981; color: white; }
+        .status-closed { background: #6B7280; color: white; }
+        .status-in-progress { background: #3B82F6; color: white; }
+        .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Ticket Status Update</h1>
+        </div>
+        <div class="content">
+            <p>Dear <strong>${payload.name}</strong>,</p>
+            
+            <p>The status of your support ticket has been updated.</p>
+            
+            <p><strong>Ticket ID:</strong> ${payload.ticket_id}</p>
+            <p><strong>Subject:</strong> ${payload.subject}</p>
+            <p><strong>New Status:</strong> <span class="status-badge status-${payload.status.replace('_', '-')}">${payload.status.replace('_', ' ').toUpperCase()}</span></p>
+            
+            ${payload.status === 'resolved' ? `
+            <p>Your ticket has been resolved. If you're satisfied with the resolution, no further action is needed. If you have additional questions, you can reply to reopen the ticket.</p>
+            <p>We'd appreciate if you could take a moment to rate your support experience.</p>
+            ` : ''}
+            
+            <p>Best regards,<br>
+            <strong>Eswatini MSME Platform Support Team</strong></p>
+        </div>
+        <div class="footer">
+            <p>Ticket Reference: ${payload.ticket_id}</p>
+            <p>Eswatini MSME Platform | support@ceec-msme.com</p>
+        </div>
+    </div>
+</body>
+</html>`
 
 
 module.exports = {
@@ -407,5 +601,11 @@ module.exports = {
     userApprovedEmailTemplate,
     userRejectedEmailTemplate,
     userRagistrationRequestTemplate,
-    rTRFillByUserTemplate
+    rTRFillByUserTemplate,
+
+    // Help Desk Templates
+    ticketConfirmationEmail,
+    ticketResponseEmail,
+    ticketAssignmentEmail,
+    ticketStatusUpdateEmail
 }

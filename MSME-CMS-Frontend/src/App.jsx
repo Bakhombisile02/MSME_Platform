@@ -22,12 +22,19 @@ import BusinessSubCategories from './pages/business-sub-categories/business-sub-
 import NotFound from './pages/not-found/page'
 import MsmeByCategory from './pages/msme-by-category/page'
 import ServiceProviderListByCategory from './pages/service-provider-by-category/page'
+// Help Desk imports
+import HelpDeskDashboard from './pages/helpdesk/helpdesk-dashboard'
+import TicketDetail from './pages/helpdesk/ticket-detail'
+import TicketCategories from './pages/helpdesk/ticket-categories'
+
+// Determine basename based on environment
+const basename = import.meta.env.PROD ? '/admin' : '/';
 
 function App() {
 
   return (
     <>
-      <BrowserRouter>
+      <BrowserRouter basename={basename}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route element={<ProtectedLayout />}>
@@ -37,6 +44,10 @@ function App() {
             <Route path="/articles" element={<Articles/>} />
             <Route path="/banner" element={<Banners/>} />
             <Route path="/contact-us" element={<Contactus/>} />
+            {/* Help Desk Routes */}
+            <Route path="/helpdesk" element={<HelpDeskDashboard />} />
+            <Route path="/ticket/:id" element={<TicketDetail />} />
+            <Route path="/ticket-categories" element={<TicketCategories />} />
             <Route path="/feedback-received" element={<FeedbackReceived />} />
             <Route path="/business-category" element={<BusinessCategory />}/>
             <Route path="/partners" element={<Partners />}/>

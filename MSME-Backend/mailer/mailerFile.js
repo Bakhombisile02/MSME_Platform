@@ -58,4 +58,92 @@ async function sendEmail(payload, status, email) {
     }
 }
 
-module.exports = sendEmail;
+// ==================== HELP DESK EMAIL FUNCTIONS ====================
+
+async function sendTicketConfirmationEmail(payload) {
+    try {
+        const transporter = nodemailer.createTransport(CONFIG.mail);
+        
+        const message = {
+            from: CONFIG.mail_from,
+            to: payload.email,
+            subject: `[${payload.ticket_id}] Support Ticket Received - ${payload.subject}`,
+            html: emailTemplate.ticketConfirmationEmail(payload)
+        };
+
+        const info = await transporter.sendMail(message);
+        console.log('Ticket confirmation email sent:', info.response);
+        return true;
+    } catch (error) {
+        console.error('Error sending ticket confirmation email:', error);
+        throw error;
+    }
+}
+
+async function sendTicketResponseEmail(payload) {
+    try {
+        const transporter = nodemailer.createTransport(CONFIG.mail);
+        
+        const message = {
+            from: CONFIG.mail_from,
+            to: payload.email,
+            subject: `Re: [${payload.ticket_id}] ${payload.subject}`,
+            html: emailTemplate.ticketResponseEmail(payload)
+        };
+
+        const info = await transporter.sendMail(message);
+        console.log('Ticket response email sent:', info.response);
+        return true;
+    } catch (error) {
+        console.error('Error sending ticket response email:', error);
+        throw error;
+    }
+}
+
+async function sendTicketAssignmentEmail(payload) {
+    try {
+        const transporter = nodemailer.createTransport(CONFIG.mail);
+        
+        const message = {
+            from: CONFIG.mail_from,
+            to: payload.admin_email,
+            subject: `[Assigned] ${payload.ticket_id} - ${payload.subject}`,
+            html: emailTemplate.ticketAssignmentEmail(payload)
+        };
+
+        const info = await transporter.sendMail(message);
+        console.log('Ticket assignment email sent:', info.response);
+        return true;
+    } catch (error) {
+        console.error('Error sending ticket assignment email:', error);
+        throw error;
+    }
+}
+
+async function sendTicketStatusUpdateEmail(payload) {
+    try {
+        const transporter = nodemailer.createTransport(CONFIG.mail);
+        
+        const message = {
+            from: CONFIG.mail_from,
+            to: payload.email,
+            subject: `[${payload.ticket_id}] Ticket Status Updated - ${payload.status.replace('_', ' ').toUpperCase()}`,
+            html: emailTemplate.ticketStatusUpdateEmail(payload)
+        };
+
+        const info = await transporter.sendMail(message);
+        console.log('Ticket status update email sent:', info.response);
+        return true;
+    } catch (error) {
+        console.error('Error sending ticket status update email:', error);
+        throw error;
+    }
+}
+
+module.exports = {
+    sendEmail,
+    sendTicketConfirmationEmail,
+    sendTicketResponseEmail,
+    sendTicketAssignmentEmail,
+    sendTicketStatusUpdateEmail
+};

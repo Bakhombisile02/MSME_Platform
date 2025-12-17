@@ -101,3 +101,34 @@ html, body {
   background: #cbd5e0;
   border-radius: 2px;
 }
+
+/* Search Highlighting Styles */
+.search-highlight,
+mark.search-highlight {
+  background-color: #fef08a; /* Yellow highlight - tailwind yellow-200 */
+  color: inherit;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-weight: 600;
+}
+
+/* Dark mode support for search highlight */
+@media (prefers-color-scheme: dark) {
+  .search-highlight,
+  mark.search-highlight {
+    background-color: #854d0e; /* Darker yellow for dark mode */
+    color: #fef08a;
+  }
+}
+
+/* Alternative highlight styles for different contexts */
+.search-highlight-subtle {
+  background-color: rgba(254, 240, 138, 0.5);
+  border-bottom: 2px solid #eab308;
+}
+
+.search-highlight-bold {
+  background-color: #fde047;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}

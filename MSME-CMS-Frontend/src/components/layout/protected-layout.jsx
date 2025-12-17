@@ -1,11 +1,33 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import Sidebar from './sidebar/sidebar'
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Swal from 'sweetalert2';
 
 const ProtectedLayout = () => {
   const [shouldRedirect, setShouldRedirect] = useState(false);
-  const token = localStorage.getItem("authToken");
+  const [token, setToken] = useState(() => localStorage.getItem("authToken"));
+
+  // Check for token changes (e.g., when 401 removes it)
+  const checkToken = useCallback(() => {
+    const currentToken = localStorage.getItem("authToken");
+    if (currentToken !== token) {
+      setToken(currentToken);
+    }
+  }, [token]);
+
+  // Listen for storage events (when token is removed by axios interceptor)
+  useEffect(() => {
+    // Check token periodically and on focus
+    const interval = setInterval(checkToken, 1000);
+    window.addEventListener('focus', checkToken);
+    window.addEventListener('storage', checkToken);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', checkToken);
+      window.removeEventListener('storage', checkToken);
+    };
+  }, [checkToken]);
 
   useEffect(() => {
     if (!token) {
@@ -22,10 +44,11 @@ const ProtectedLayout = () => {
       });
     }
   }, [token]);
+
   if (!token && shouldRedirect) {
     return <Navigate to="/login" replace />;
-    // return <Navigate to="/login" />;
   }
+
   return (
     <div className="bg-white">
       <Sidebar />

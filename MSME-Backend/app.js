@@ -24,10 +24,10 @@ app.use(compression());
 // Skip rate limiting in test environment to allow proper API testing
 const isTestEnv = process.env.NODE_ENV === 'test';
 
-// Global rate limiting - 100 requests per 15 minutes per IP
+// Global rate limiting - 1000 requests per 15 minutes per IP (generous for CMS)
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: 1000,
   message: { error: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -35,10 +35,10 @@ const globalLimiter = rateLimit({
 });
 app.use('/api/', globalLimiter);
 
-// Strict rate limiting for authentication endpoints - 5 requests per 15 minutes
+// Rate limiting for authentication endpoints - 20 requests per 15 minutes (more generous)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 20,
   message: { error: 'Too many login attempts, please try again after 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -49,10 +49,10 @@ app.use('/api/admin/ragister', authLimiter);
 app.use('/api/msme-business/login', authLimiter);
 app.use('/api/msme-business/forget-password', authLimiter);
 
-// Stricter rate limiting for email enumeration protection - 10 requests per 15 minutes
+// Rate limiting for email enumeration protection - 50 requests per 15 minutes (more generous)
 const emailCheckLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 50,
   message: { error: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,

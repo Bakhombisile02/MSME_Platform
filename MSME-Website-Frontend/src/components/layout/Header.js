@@ -31,7 +31,7 @@ export default function Header() {
       <div className="flex justify-between items-center px-4 py-3 max-w-7xl mx-auto">
         {/* Logo */}
         <Link href="/" className='outline-none'>
-          <Image src={"/images/logo_msme.png"} alt="MSME Logo" width={80} height={70}  className="cursor-pointer outline-none" />
+          <Image src={"/images/logo_msme.png"} alt="MSME Logo" width={80} height={70} style={{ height: 'auto' }} className="cursor-pointer outline-none" />
         </Link>
 
 

@@ -178,7 +178,7 @@ export default function Slider() {
             {/* Add gradient overlay */}
             <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent"></div>
             
-            <div className="absolute right-4 sm:right-[30px] md:right-[70px] top-8 sm:top-12 md:top-16 max-h-[300px] sm:max-h-[350px] md:max-h-[400px] h-full w-[90%] sm:w-[70%] max-w-[400px] md:w-1/3 flex items-center justify-center">
+            <div className="absolute right-4 sm:right-[30px] md:right-[70px] top-8 sm:top-12 md:top-16 max-h-[300px] sm:max-h-[350px] md:max-h-[400px] h-full w-[90%] sm:w-[70%] max-w-[400px] md:w-1/3 flex items-center justify-center hidden md:flex">
               <div className="bg-black/20 backdrop-blur-3xl text-white px-4 sm:px-6 md:px-8 py-10 sm:py-16 md:py-20   w-full h-full flex flex-col justify-center rounded-lg border border-white/20 shadow-2xl transform transition-all duration-500 hover:scale-105">
                 <h1 className="text-xl sm:text-2xl md:text-3xl mb-4 sm:mb-6 font-bold leading-tight"> {limitWords(slide.title, 8)}</h1>
                 <p className="text-xs sm:text-sm md:text-base mb-6 sm:mb-8 text-gray-200 leading-relaxed">{limitWords(slide.description, 10)}</p>

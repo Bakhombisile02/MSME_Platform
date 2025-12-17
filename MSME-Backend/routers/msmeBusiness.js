@@ -74,6 +74,15 @@ router.get('/search-by-region/:region',[
 
 router.get('/filters', validateFilters, handleValidationErrors, MSMEBusinessController.filtersAPI);
 
+// =============================================================================
+// SEARCH AUTOCOMPLETE & SUGGESTIONS
+// =============================================================================
+// Autocomplete - returns suggestions as user types (min 2 chars)
+router.get('/autocomplete', MSMEBusinessController.autocomplete);
+
+// Popular searches - returns top categories, locations for suggestions
+router.get('/popular-searches', MSMEBusinessController.popularSearches);
+
 
 router.put('/delete/:id', validateIdParam('id'), authMiddleware.authAdmin, MSMEBusinessController.delete);
 

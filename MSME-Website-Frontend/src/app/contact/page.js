@@ -1,11 +1,12 @@
 "use client";
 import Partners from "@/components/Partners";
 import Image from "next/image";
-import { FaMapMarkerAlt, FaEnvelope, FaPhone, FaRegEnvelope, FaUser, FaCommentDots, FaRegFileAlt } from "react-icons/fa";
+import Link from "next/link";
+import { FaMapMarkerAlt, FaEnvelope, FaPhone, FaRegEnvelope, FaUser, FaCommentDots, FaRegFileAlt, FaTag, FaSearch, FaTicketAlt } from "react-icons/fa";
 import { motion } from "framer-motion";
 import Subscribe from "@/components/Subscribe";
-import { createContact } from '@/apis/contact-api';
-import { useState } from 'react';
+import { createContact, getTicketCategories } from '@/apis/contact-api';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 
 export default function ContactPage() {
@@ -15,12 +16,29 @@ export default function ContactPage() {
     mobile: '',
     subject: '',
     message: '',
+    category_id: '',
   });
   const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [ticketSuccess, setTicketSuccess] = useState(null);
   const [errors, setErrors] = useState({
     email: '',
     mobile: '',
   });
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await getTicketCategories();
+        if (response.status && response.data) {
+          setCategories(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -95,15 +113,22 @@ export default function ContactPage() {
     }
     setLoading(true);
     try {
-      await createContact({
+      const response = await createContact({
         name: form.fullName,
         email: form.email,
         mobile: form.mobile,
         subject: form.subject,
         message: form.message,
+        category_id: form.category_id || null,
       });
+      if (response.status && response.data?.ticket_id) {
+        setTicketSuccess({
+          ticketId: response.data.ticket_id,
+          email: form.email,
+        });
+      }
       toast.success('Message sent successfully!');
-      setForm({ fullName: '', email: '', mobile: '', subject: '', message: '' });
+      setForm({ fullName: '', email: '', mobile: '', subject: '', message: '', category_id: '' });
     } catch (error) {
       toast.error('Failed to send message. Please try again.');
     } finally {
@@ -140,6 +165,20 @@ export default function ContactPage() {
           >
             We&apos;d love to hear from you. Let&apos;s discuss how we can help your business grow.
           </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="mt-6"
+          >
+            <Link 
+              href="/track-ticket"
+              className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-6 py-3 rounded-full hover:bg-white/30 transition-all duration-300"
+            >
+              <FaTicketAlt />
+              <span>Track Your Ticket</span>
+            </Link>
+          </motion.div>
         </div>
         <svg
           className="absolute -bottom-0.5 left-0 w-full rotate-180"
@@ -166,19 +205,22 @@ export default function ContactPage() {
             {
               icon: <FaPhone className="text-2xl text-white" />,
               title: "Make a Call",
-              content: "+268 76992514",
+              content: "+268 7699 9719",
+              href: "tel:+26876999719",
               delay: 0.2
             },
             {
               icon: <FaEnvelope className="text-2xl text-white" />,
               title: "Send Email",
               content: "info@msme.co.sz",
+              href: "mailto:info@msme.co.sz",
               delay: 0.4
             },
             {
               icon: <FaMapMarkerAlt className="text-2xl text-white" />,
               title: "Visit Office",
               content: "455 West Street Kings Mbabane",
+              href: null,
               delay: 0.6
             }
           ].map((item, index) => (
@@ -195,7 +237,11 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold font-montserrat text-primary">{item.title}</h3>
-                  <p className="text-gray-600">{item.content}</p>
+                  {item.href ? (
+                    <a href={item.href} className="text-gray-600 hover:text-primary transition">{item.content}</a>
+                  ) : (
+                    <p className="text-gray-600">{item.content}</p>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -297,6 +343,25 @@ export default function ContactPage() {
                       onChange={handleChange}
                     />
                   </div>
+                  {categories.length > 0 && (
+                    <div className="relative group">
+                      <div className="absolute inset-0 bg-primary/5 rounded-lg transform scale-0 group-hover:scale-100 transition-transform duration-300"></div>
+                      <FaTag className="absolute left-3 top-4 text-gray-400 group-hover:text-primary transition-colors z-20" />
+                      <select
+                        name="category_id"
+                        className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all hover:border-primary relative z-10 bg-transparent appearance-none cursor-pointer"
+                        value={form.category_id}
+                        onChange={handleChange}
+                      >
+                        <option value="">Select Category (Optional)</option>
+                        {categories.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div className="relative group">
                     <div className="absolute inset-0 bg-primary/5 rounded-lg transform scale-0 group-hover:scale-100 transition-transform duration-300"></div>
                     <FaRegFileAlt className="absolute left-3 top-4 text-gray-400 group-hover:text-primary transition-colors z-20" />
@@ -336,6 +401,48 @@ export default function ContactPage() {
           </motion.div>
         </div>
       </div>
+
+      {/* Ticket Success Modal */}
+      {ticketSuccess && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center"
+          >
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FaTicketAlt className="text-green-600 text-2xl" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800 mb-2">Ticket Created!</h3>
+            <p className="text-gray-600 mb-4">
+              Your support ticket has been created successfully.
+            </p>
+            <div className="bg-gray-100 rounded-lg p-4 mb-6">
+              <p className="text-sm text-gray-500 mb-1">Your Ticket ID</p>
+              <p className="text-xl font-mono font-bold text-primary">{ticketSuccess.ticketId}</p>
+            </div>
+            <p className="text-sm text-gray-500 mb-6">
+              A confirmation email has been sent to <strong>{ticketSuccess.email}</strong>. 
+              You can use your ticket ID to track the status of your request.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setTicketSuccess(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Close
+              </button>
+              <Link
+                href={`/track-ticket?id=${ticketSuccess.ticketId}&email=${encodeURIComponent(ticketSuccess.email)}`}
+                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+              >
+                <FaSearch className="text-sm" />
+                Track Ticket
+              </Link>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       <div className="mt-20">
         <Subscribe />

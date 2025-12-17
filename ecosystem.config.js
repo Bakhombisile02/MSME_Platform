@@ -26,20 +26,8 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 3000
       }
-    },
-    {
-      name: 'msme-cms',
-      cwd: './MSME-CMS-Frontend',
-      script: 'npx',
-      args: 'serve -s dist -l 5173',
-      instances: 1,
-      autorestart: true,
-      watch: false,
-      max_memory_restart: '200M',
-      env_production: {
-        NODE_ENV: 'production',
-        PORT: 5173
-      }
     }
+    // CMS is served directly by Nginx from /var/www/msme/MSME-CMS-Frontend/dist/
+    // No PM2 process needed - just run: npm run build in MSME-CMS-Frontend
   ]
 };

@@ -20,21 +20,36 @@ instance.interceptors.response.use(
       // Clear stored auth data
       localStorage.removeItem('authToken');
       localStorage.removeItem('adminData');
+      
+      // Dispatch storage event so ProtectedLayout detects the change
+      window.dispatchEvent(new Event('storage'));
 
-      const result = await Swal.fire({
+      // Show popup with auto-close timer
+      let timerInterval;
+      await Swal.fire({
         icon: 'warning',
         title: 'Session Expired',
-        text: 'Your session has expired. Please log in again.',
-        confirmButtonText: 'Go to Login',
+        html: 'Your session has expired. Redirecting to login in <b>3</b> seconds...',
+        timer: 3000,
+        timerProgressBar: true,
         allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => {
+          const b = Swal.getHtmlContainer().querySelector('b');
+          timerInterval = setInterval(() => {
+            const timeLeft = Math.ceil(Swal.getTimerLeft() / 1000);
+            b.textContent = timeLeft;
+          }, 100);
+        },
+        willClose: () => {
+          clearInterval(timerInterval);
+        }
       });
 
-      // Reset flag before redirect so future requests work
+      // Reset flag and redirect
       isHandlingUnauthorized = false;
-
-      if (result.isConfirmed) {
-        window.location.href = '/login';
-      }
+      window.location.href = '/login';
     }
 
     return Promise.reject(error);

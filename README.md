@@ -243,15 +243,43 @@ pm2 save       # Save current process list
 
 ### Production Ports
 
-| App | Port | Process |
-|-----|------|--------|
-| Backend | 3001 | `node server.js` |
-| Website | 3000 | `npm start` (Next.js) |
-| CMS | 5173 | `serve -s dist` (static server) |
+| App | Port/Path | Process |
+|-----|-----------|---------|
+| Backend | 3001 | `node server.js` (PM2) |
+| Website | 3000 | `npm start` (Next.js via PM2) |
+| CMS | `/admin` | Static files served by Nginx |
 
 > **Important**: Run `npm run build:all` before `npm run start:prod` to build the frontend apps.
 
-## �🔐 Security Features
+### Nginx Setup (HTTPS + Reverse Proxy)
+
+The complete nginx configuration is in `nginx/msme.conf`. Setup on your production server:
+
+```bash
+# 1. Copy project to server
+scp -r MSME_Site root@your-server:/var/www/msme
+
+# 2. Copy nginx config
+sudo cp /var/www/msme/nginx/msme.conf /etc/nginx/sites-available/msme
+sudo ln -s /etc/nginx/sites-available/msme /etc/nginx/sites-enabled/
+
+# 3. Install SSL certificate
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d ceec-msme.com -d www.ceec-msme.com
+
+# 4. Test and reload nginx
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+**URL Structure:**
+| URL | Service |
+|-----|---------|
+| `https://ceec-msme.com` | Public Website |
+| `https://ceec-msme.com/admin` | CMS Admin Panel |
+| `https://ceec-msme.com/api/*` | Backend API |
+
+## 🔐 Security Features
 
 - **Rate Limiting**: 100 requests/15min (global), 5 requests/15min (auth endpoints), 10 requests/15min (email check)
 - **Security Headers**: Helmet.js for XSS, CSP protection
