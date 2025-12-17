@@ -1,44 +1,21 @@
-# Dependencies
+# Dependencies (generated)
 node_modules/
 
-# Environment
+# Environment variables
 .env
 .env.local
 .env.development
 .env.test
 .env.production
 
-# Next.js
+# Next.js build output (generated)
 .next/
 out/
 build/
 dist/
 
-# Logs
+# Logs (generated)
 *.log
-npm-debug.log*
-website.log
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# OS files
 .DS_Store
-
-# Testing
-coverage/
-.nyc_output/
-
-# Temporary
-tmp/
-temp/
-*.tmp
-
-# Backup files
-*.backup
-*.bak
-
-# Vercel
-.vercel
