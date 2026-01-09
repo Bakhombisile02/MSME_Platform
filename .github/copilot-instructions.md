@@ -1,103 +1,102 @@
 # Copilot Instructions - MSME Platform
 
-## Architecture Overview
+Eswatini MSME business registry platform. **Production runs on Firebase** (Cloud Functions + Firestore). Legacy Express/MySQL backend exists but is being phased out.
 
-**Monorepo** with three apps for Eswatini MSME Platform:
+## Architecture
 
-| App | Stack | Port | Purpose |
-|-----|-------|------|---------|
-| `MSME-Backend/` | Express + Sequelize + MySQL | 3001 | REST API |
-| `MSME-Website-Frontend/` | Next.js 14 (App Router) | 3000 | Public website |
-| `MSME-CMS-Frontend/` | React + Vite | 5173 | Admin panel |
+| App | Stack | Port | Status |
+|-----|-------|------|--------|
+| `functions/` | Firebase Cloud Functions + TypeScript | 5001 | **PRODUCTION** |
+| `MSME-Website-Frontend/` | Next.js 15 (App Router) | 3000 | Active |
+| `MSME-CMS-Frontend/` | React 19 + Vite | 5173 | Active |
+| `MSME-Backend/` | Express + Sequelize + MySQL | 3001 | Legacy (read CLAUDE.md) |
 
-## Critical Patterns
+## Development Workflow (Firebase)
 
-### BaseRepository Pattern (REQUIRED)
-All DB operations use `services/BaseRepository.js` — never raw Sequelize in controllers:
-```javascript
-const BaseRepo = require('../services/BaseRepository');
-// baseCreate, baseList, baseUpdate, baseDelete, baseFindById, baseDetail
+```bash
+# Terminal 1 - Firebase emulators (REQUIRED)
+firebase emulators:start
+
+# Terminal 2 - Website
+cd MSME-Website-Frontend && NEXT_PUBLIC_USE_EMULATORS=true npm run dev
+
+# Terminal 3 - CMS
+cd MSME-CMS-Frontend && VITE_USE_EMULATORS=true npm run dev
 ```
 
-### Intentional Naming (Maintain These Typos)
-- Controllers: `.contoller.js` (not `.controller.js`)
-- Middleware: `middelware/` (not `middleware/`)
-- Axios: `axios-instanse.js` (Website)
+Emulator UI at http://localhost:4000
 
-### Auth Token Keys
-- **Website**: `localStorage.token` → `AuthContext` + interceptor
-- **CMS**: `localStorage.authToken` → interceptor with SweetAlert on 401
-- **Backend**: `middelware/auth.middelware.js` (`authUser`, `authAdmin`)
-
-## Adding Features
+## New Features → Use Firebase (functions/)
 
 ### New API Endpoint
-1. Model → `MSME-Backend/models/` (export in `index.js`)
-2. Router → `MSME-Backend/routers/` (register in `app.js`)
-3. Controller → `MSME-Backend/controllers/*.contoller.js` using BaseRepo
-4. Frontend API → `src/apis/` (Website) or `src/api/` (CMS)
+1. Create route in `functions/src/routes/feature.routes.ts`
+2. Register in `functions/src/api.ts`
+3. Update `firestore.rules` if new collection needed
 
-### New Page
-- **Website**: `src/app/[page]/page.js` + `"use client"` for interactivity
-- **CMS**: `src/pages/[feature]/` + route in `App.jsx` inside `<ProtectedLayout>`
+```typescript
+// functions/src/routes/example.routes.ts
+import { Router } from 'express';
+import { authAdmin } from '../middleware/auth.middleware';
+import * as admin from 'firebase-admin';
 
-## Key Business Logic
+const router = Router();
+const db = admin.firestore();
 
-- **Business status**: `is_verified` → 1=pending, 2=approved, 3=rejected
-- **Soft deletes**: Most models use `paranoid: true`
-- **Gender tracking**: `owner_gender_summary` computed from `BusinessOwnersModel`
-- **File uploads**: Stored in `MSME-Backend/public/` subdirs
+router.get('/list', async (req, res) => {
+  const snapshot = await db.collection('examples')
+    .where('deletedAt', '==', null).limit(10).get();
+  res.json(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+});
 
-### Password Reset (3-step OTP flow)
-```
-POST /api/msme-business/forget-password/request-otp → { email }
-POST /api/msme-business/forget-password/verify-otp  → { email, otp } → reset_token
-POST /api/msme-business/forget-password/reset       → { reset_token, new_password }
-```
-OTP: 10min validity, 5 failed attempts → 30min lockout
-
-## Security
-
-- **Rate limits**: 100 req/15min global; 5/15min auth; 10/15min email check
-- **XSS**: Backend uses `xss-clean`, frontends use `sanitizeHTML()` from `src/utils/sanitize.js`
-- **Validation**: `express-validator` in routes — follow existing patterns
-
-## Development
-
-```bash
-# Start (separate terminals)
-cd MSME-Backend && npm run dev          # Port 3001
-cd MSME-Website-Frontend && npm run dev # Port 3000
-cd MSME-CMS-Frontend && npm run dev     # Port 5173
-
-# Database
-cd MSME-Backend && npx sequelize-cli db:migrate
-cd MSME-Backend && npm test
+export default router;
 ```
 
-## Environment Variables
+### New CMS Page
+1. Create `MSME-CMS-Frontend/src/pages/feature-name/page.jsx` (kebab-case)
+2. Add route in `src/App.jsx` inside `<ProtectedLayout>`
+3. Use `FirebaseAuthContext.jsx` for auth, `firebase-axios.js` for API calls
 
-| App | Prefix | Key vars |
-|-----|--------|----------|
-| Backend | — | `DB_*`, `MAIL_*`, `JWT_SECRET`, `ADMIN_ERROR_EMAILS` |
-| Website | `NEXT_PUBLIC_` | `NEXT_PUBLIC_API_URL` |
-| CMS | `VITE_` | `VITE_API_URL` |
+### New Website Page
+1. Create `MSME-Website-Frontend/src/app/feature/page.js`
+2. Add `"use client"` directive for interactive components
+3. Use `FirebaseAuthContext.js` + `firebase-axios.js`
 
-## Production (PM2)
+## Business Logic Constants
 
-```bash
-npm run install:all && npm run build:all
-npm run start:prod   # Starts all via ecosystem.config.js
-npm run logs         # View logs
+```javascript
+// Business verification status (is_verified)
+1 = pending    // Awaiting admin review
+2 = approved   // Visible on public website  
+3 = rejected   // Not displayed
+
+// Soft deletes: deletedAt field (null = active)
 ```
 
 ## Key Files
 
-| Purpose | Location |
-|---------|----------|
-| Route registration | `MSME-Backend/app.js` |
-| All models | `MSME-Backend/models/index.js` |
-| Error handler | `MSME-Backend/middelware/errorHandler.middelware.js` |
-| Website layout | `MSME-Website-Frontend/src/app/layout.js` |
-| CMS routes | `MSME-CMS-Frontend/src/App.jsx` |
-| Auth context | `MSME-Website-Frontend/src/context/AuthContext.js` |
+| Purpose | Path |
+|---------|------|
+| Cloud Functions entry | `functions/src/index.ts` |
+| Express API | `functions/src/api.ts` |
+| Firestore repository | `functions/src/services/FirestoreRepository.ts` |
+| Auth middleware | `functions/src/middleware/auth.middleware.ts` |
+| Security rules | `firestore.rules`, `storage.rules` |
+| Website Firebase auth | `MSME-Website-Frontend/src/context/FirebaseAuthContext.js` |
+| CMS Firebase auth | `MSME-CMS-Frontend/src/context/FirebaseAuthContext.jsx` |
+
+## ⚠️ Legacy Code (MSME-Backend/)
+
+Only touch for backward compatibility. Uses intentional typos—**do not fix**:
+- Controllers: `*.contoller.js`
+- Middleware folder: `middelware/`
+- Website axios: `axios-instanse.js`
+
+Use `services/BaseRepository.js` (never raw Sequelize). See CLAUDE.md for full legacy docs.
+
+## Deployment
+
+```bash
+firebase deploy                    # All
+firebase deploy --only functions   # Backend only
+firebase deploy --only firestore   # Security rules
+```

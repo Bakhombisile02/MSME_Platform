@@ -1,0 +1,45 @@
+version: 2
+updates:
+  # Firebase Cloud Functions (production)
+  - package-ecosystem: "npm"
+    directory: "/functions"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "functions"
+    commit-message:
+      prefix: "chore(deps):"
+
+  # Next.js Website
+  - package-ecosystem: "npm"
+    directory: "/MSME-Website-Frontend"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "website"
+    commit-message:
+      prefix: "chore(deps):"
+
+  # React CMS
+  - package-ecosystem: "npm"
+    directory: "/MSME-CMS-Frontend"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "cms"
+    commit-message:
+      prefix: "chore(deps):"
+
+  # Legacy Backend (less frequent - being phased out)
+  - package-ecosystem: "npm"
+    directory: "/MSME-Backend"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "dependencies"
+      - "legacy"
+    commit-message:
+      prefix: "chore(deps):"
