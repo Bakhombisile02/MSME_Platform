@@ -1,0 +1,18 @@
+{
+  "projects": {
+    "default": "msmesite-53367"
+  },
+  "targets": {
+    "msmesite-53367": {
+      "hosting": {
+        "website": [
+          "msmesite-53367"
+        ],
+        "cms": [
+          "msmesite-53367-d3611"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

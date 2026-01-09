@@ -1,0 +1,118 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "msme_businesses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_verified", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "msme_businesses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "business_category_id", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "msme_businesses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_verified", "order": "ASCENDING" },
+        { "fieldPath": "deletedAt", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "msme_businesses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "business_category_id", "order": "ASCENDING" },
+        { "fieldPath": "is_verified", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "msme_businesses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "business_category_id", "order": "ASCENDING" },
+        { "fieldPath": "is_verified", "order": "ASCENDING" },
+        { "fieldPath": "deletedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "msme_businesses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "region", "order": "ASCENDING" },
+        { "fieldPath": "is_verified", "order": "ASCENDING" },
+        { "fieldPath": "deletedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "msme_businesses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_verified", "order": "ASCENDING" },
+        { "fieldPath": "deletedAt", "order": "ASCENDING" },
+        { "fieldPath": "name_of_organization_lower", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "business_sub_categories",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "category_id", "order": "ASCENDING" },
+        { "fieldPath": "sub_category_name", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "service_providers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "category_id", "order": "ASCENDING" },
+        { "fieldPath": "deletedAt", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "blogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deletedAt", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tickets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "priority", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tickets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "assigned_to", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "msme_businesses",
+      "fieldPath": "name_of_organization_lower",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" }
+      ]
+    }
+  ]
+}

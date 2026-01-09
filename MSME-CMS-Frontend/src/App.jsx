@@ -28,7 +28,8 @@ import TicketDetail from './pages/helpdesk/ticket-detail'
 import TicketCategories from './pages/helpdesk/ticket-categories'
 
 // Determine basename based on environment
-const basename = import.meta.env.PROD ? '/admin' : '/';
+// Use VITE_BASE_PATH env var, default to '/' for Firebase Hosting (standalone site)
+const basename = import.meta.env.VITE_BASE_PATH || '/';
 
 function App() {
 

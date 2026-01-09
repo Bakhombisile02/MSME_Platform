@@ -1,0 +1,144 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+    
+    function isValidImage() {
+      return request.resource.contentType.matches('image/.*')
+        && request.resource.size < 50 * 1024 * 1024; // 50MB
+    }
+    
+    function isValidDocument() {
+      return request.resource.contentType.matches('application/pdf')
+        || request.resource.contentType.matches('application/msword')
+        || request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.*')
+        || request.resource.contentType.matches('application/vnd.ms-excel')
+        || request.resource.contentType.matches('application/vnd.ms-powerpoint');
+    }
+    
+    // ==========================================================================
+    // ROOT LEVEL FILES (Legacy migrated files)
+    // ==========================================================================
+    
+    // Allow public read for all files at root level (migrated images)
+    match /{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // ==========================================================================
+    // ADMIN-ONLY UPLOADS (with folder structure)
+    // ==========================================================================
+    
+    // Business categories images
+    match /business-categories/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidImage();
+    }
+    
+    // Business category images (alternate folder name)
+    match /business-category/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidImage();
+    }
+    
+    // Partners logos
+    match /partners-logo/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidImage();
+    }
+    
+    // Team member images
+    match /team-member/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidImage();
+    }
+    
+    // Home banner images
+    match /home-banner/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidImage();
+    }
+    
+    // Blog images
+    match /blog-image/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidImage();
+    }
+    
+    // Service provider categories images
+    match /service-provider-categories/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidImage();
+    }
+    
+    // Service providers images
+    match /service-providers/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidImage();
+    }
+    
+    // Downloads (documents)
+    match /downloads/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && (isValidDocument() || isValidImage())
+        && request.resource.size < 100 * 1024 * 1024; // 100MB
+    }
+    
+    // ==========================================================================
+    // USER UPLOADS (Business registration)
+    // ==========================================================================
+    
+    // Business profile images - authenticated users can upload their own
+    match /business/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if isAuthenticated() 
+        && request.auth.uid == userId 
+        && isValidImage();
+    }
+    
+    // Business profile documents
+    match /business-profile/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if isAuthenticated() 
+        && request.auth.uid == userId 
+        && isValidImage();
+    }
+    
+    // Incorporation documents
+    match /incorporation-profile/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if isAuthenticated() 
+        && request.auth.uid == userId 
+        && (isValidImage() || isValidDocument())
+        && request.resource.size < 100 * 1024 * 1024; // 100MB
+    }
+    
+    // ==========================================================================
+    // TICKET ATTACHMENTS
+    // Restricts writes to ticket owner only via Firestore lookup
+    // ==========================================================================
+    match /ticket-attachments/{ticketId}/{fileName} {
+      allow read: if isAuthenticated();
+      // Only allow write if user is authenticated, owns the ticket, and file is valid
+      allow write: if isAuthenticated() 
+        && (isValidImage() || isValidDocument())
+        && request.resource.size < 10 * 1024 * 1024 // 10MB
+        && (
+          // Check if user's email matches the ticket owner
+          firestore.get(/databases/(default)/documents/tickets/$(ticketId)).data.email == request.auth.token.email
+          // Or if user has admin role
+          || request.auth.token.role == 'admin'
+        );
+    }
+  }
+}

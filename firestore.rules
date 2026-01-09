@@ -1,0 +1,182 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function notDeleted() {
+      return resource.data.deletedAt == null;
+    }
+    
+    // ==========================================================================
+    // ADMIN COLLECTION
+    // ==========================================================================
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+      allow write: if false; // Only via Cloud Functions
+    }
+    
+    // ==========================================================================
+    // MSME BUSINESSES
+    // ==========================================================================
+    match /msme_businesses/{businessId} {
+      // Public can read approved businesses
+      allow read: if resource.data.is_verified == 2 && notDeleted();
+      
+      // Authenticated users can read their own business (any status)
+      allow read: if isOwner(resource.data.userId);
+      
+      // Admins can read all
+      allow read: if isAdmin();
+      
+      // Users can update their own business
+      allow update: if isOwner(resource.data.userId) 
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['is_verified', 'userId']);
+      
+      // Creation only via Cloud Functions (handles validation)
+      allow create: if false;
+      
+      // Soft delete only by owner or admin
+      allow delete: if false; // Use soft delete via update
+      
+      // Directors subcollection
+      match /directors/{directorId} {
+        allow read: if isOwner(get(/databases/$(database)/documents/msme_businesses/$(businessId)).data.userId) || isAdmin();
+        allow write: if isOwner(get(/databases/$(database)/documents/msme_businesses/$(businessId)).data.userId);
+      }
+      
+      // Business owners subcollection
+      match /owners/{ownerId} {
+        allow read: if isOwner(get(/databases/$(database)/documents/msme_businesses/$(businessId)).data.userId) || isAdmin();
+        allow write: if isOwner(get(/databases/$(database)/documents/msme_businesses/$(businessId)).data.userId);
+      }
+    }
+    
+    // ==========================================================================
+    // BUSINESS CATEGORIES (Public read, Admin write)
+    // ==========================================================================
+    match /business_categories/{categoryId} {
+      allow read: if notDeleted();
+      allow write: if isAdmin();
+    }
+    
+    match /business_sub_categories/{subCategoryId} {
+      allow read: if notDeleted();
+      allow write: if isAdmin();
+    }
+    
+    // ==========================================================================
+    // SERVICE PROVIDERS
+    // ==========================================================================
+    match /service_providers/{providerId} {
+      allow read: if notDeleted();
+      allow write: if isAdmin();
+    }
+    
+    match /service_provider_categories/{categoryId} {
+      allow read: if notDeleted();
+      allow write: if isAdmin();
+    }
+    
+    // ==========================================================================
+    // CONTENT MANAGEMENT (Public read, Admin write)
+    // ==========================================================================
+    match /blogs/{blogId} {
+      allow read: if notDeleted();
+      allow write: if isAdmin();
+    }
+    
+    match /faqs/{faqId} {
+      allow read: if notDeleted();
+      allow write: if isAdmin();
+    }
+    
+    match /home_banners/{bannerId} {
+      allow read: if notDeleted();
+      allow write: if isAdmin();
+    }
+    
+    match /downloads/{downloadId} {
+      allow read: if notDeleted();
+      allow write: if isAdmin();
+    }
+    
+    match /partners_logos/{logoId} {
+      allow read: if notDeleted();
+      allow write: if isAdmin();
+    }
+    
+    match /teams/{teamId} {
+      allow read: if notDeleted();
+      allow write: if isAdmin();
+    }
+    
+    // ==========================================================================
+    // USER SUBMISSIONS (Public create, Admin manage)
+    // ==========================================================================
+    match /subscribers/{subscriberId} {
+      allow read: if isAdmin();
+      allow create: if true; // Public can subscribe
+      allow update, delete: if isAdmin();
+    }
+    
+    match /feedback/{feedbackId} {
+      allow read: if isAdmin();
+      allow create: if true; // Public can submit
+      allow update, delete: if isAdmin();
+    }
+    
+    // ==========================================================================
+    // HELP DESK / TICKETS
+    // ==========================================================================
+    match /tickets/{ticketId} {
+      // Users can read their own tickets (must be authenticated)
+      allow read: if isAdmin() || (request.auth != null && request.auth.token.email != null && resource.data.email == request.auth.token.email);
+      allow create: if true; // Public can create tickets
+      allow update: if isAdmin();
+      allow delete: if false;
+      
+      // Ticket responses subcollection
+      match /responses/{responseId} {
+        allow read: if isAdmin() || (request.auth != null && request.auth.token.email != null && get(/databases/$(database)/documents/tickets/$(ticketId)).data.email == request.auth.token.email);
+        allow write: if isAdmin();
+      }
+      
+      // Ticket attachments subcollection
+      match /attachments/{attachmentId} {
+        allow read: if isAdmin() || (request.auth != null && request.auth.token.email != null && get(/databases/$(database)/documents/tickets/$(ticketId)).data.email == request.auth.token.email);
+        allow write: if isAdmin();
+      }
+    }
+    
+    match /ticket_categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // ==========================================================================
+    // ANALYTICS / COUNTERS (for dashboard)
+    // ==========================================================================
+    match /analytics/{docId} {
+      allow read: if isAdmin();
+      allow write: if false; // Only via Cloud Functions
+    }
+    
+    match /counters/{counterId} {
+      allow read: if isAdmin();
+      allow write: if false; // Only via Cloud Functions
+    }
+  }
+}

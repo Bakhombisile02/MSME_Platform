@@ -5,8 +5,8 @@ import svgr from 'vite-plugin-svgr'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), svgr()],
-  // Base path for production deployment under /admin
-  base: process.env.NODE_ENV === 'production' ? '/admin/' : '/',
+  // Base path - use root for Firebase Hosting (standalone site), /admin/ for traditional deployment
+  base: process.env.VITE_BASE_PATH || '/',
   server: {
     allowedHosts: [
       'localhost',
