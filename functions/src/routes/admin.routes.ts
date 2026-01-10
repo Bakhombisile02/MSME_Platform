@@ -163,12 +163,17 @@ router.get('/profile', authAdmin, async (req: Request, res: Response) => {
   try {
     const admin = req.admin;
     
+    // Verify admin context exists
+    if (!admin || !admin.id) {
+      return res.status(401).json({ error: 'Unauthorized - admin context not found' });
+    }
+    
     res.json({
       admin: {
-        id: admin?.id,
-        name: admin?.name,
-        email: admin?.email,
-        role: admin?.role,
+        id: admin.id,
+        name: admin.name,
+        email: admin.email,
+        role: admin.role,
       }
     });
   } catch (error) {

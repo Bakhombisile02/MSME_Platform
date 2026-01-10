@@ -17,11 +17,11 @@
     "monit": "pm2 monit"
   },
   "devDependencies": {
-    "firebase-admin": "^12.0.0",
     "pm2": "^5.3.0"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
+    "firebase-admin": "^12.0.0",
     "mysql2": "^3.16.0"
   }
 }

@@ -37,8 +37,9 @@ app.use(cors({
     if (origin.includes('.web.app') || origin.includes('.firebaseapp.com')) {
       return callback(null, true);
     }
-    // Block disallowed origins
-    return callback(new Error('CORS origin denied'), false);
+    // Block disallowed origins - log for diagnostics and deny without error
+    console.warn(`CORS: Denied request from origin: ${origin}`);
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],

@@ -298,7 +298,8 @@ async function main() {
   console.log(`TOTAL: ${totalMigrated} migrated, ${totalFailed} failed`);
   console.log('========================================\n');
   
-  process.exit(0);
+  // Exit with non-zero code if any failures occurred
+  process.exit(totalFailed > 0 ? 1 : 0);
 }
 
 main().catch(error => {

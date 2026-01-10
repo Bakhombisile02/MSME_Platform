@@ -56,19 +56,27 @@ axiosInstance.interceptors.response.use(
           return Promise.reject(error);
         }
         
-        try {
-          // Mark as retried
-          originalRequest._retry = true;
-          
-          // Try to refresh token
-          const currentUser = auth.currentUser;
-          if (currentUser) {
-            const newToken = await currentUser.getIdToken(true); // Force refresh
-            
-            // Retry the original request
-            originalRequest.headers.Authorization = `Bearer ${newToken}`;
-            return axiosInstance(originalRequest);
+        // Mark as retried
+        originalRequest._retry = true;
+        
+        // Check if user is signed in
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          // No user session - sign out and redirect
+          await auth.signOut();
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
           }
+          return Promise.reject(error);
+        }
+        
+        try {
+          // Try to refresh token
+          const newToken = await currentUser.getIdToken(true); // Force refresh
+          
+          // Retry the original request
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return axiosInstance(originalRequest);
         } catch (refreshError) {
           // Sign out user if refresh fails
           await auth.signOut();

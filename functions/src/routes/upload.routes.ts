@@ -122,6 +122,11 @@ router.post('/team-member-image', authAdmin, async (req: Request, res: Response)
   try {
     const { fileName, contentType } = req.body;
     
+    // Validate fileName
+    if (!fileName || typeof fileName !== 'string' || fileName.trim() === '') {
+      return res.status(400).json({ error: 'fileName is required' });
+    }
+    
     if (!contentType?.startsWith('image/')) {
       return res.status(400).json({ error: 'Only images are allowed' });
     }
@@ -140,6 +145,11 @@ router.post('/team-member-image', authAdmin, async (req: Request, res: Response)
 router.post('/home-banner-image', authAdmin, async (req: Request, res: Response) => {
   try {
     const { fileName, contentType } = req.body;
+    
+    // Validate fileName
+    if (!fileName || typeof fileName !== 'string' || fileName.trim() === '') {
+      return res.status(400).json({ error: 'fileName is required' });
+    }
     
     if (!contentType?.startsWith('image/')) {
       return res.status(400).json({ error: 'Only images are allowed' });
@@ -160,6 +170,11 @@ router.post('/blog-image', authAdmin, async (req: Request, res: Response) => {
   try {
     const { fileName, contentType } = req.body;
     
+    // Validate fileName
+    if (!fileName || typeof fileName !== 'string' || fileName.trim() === '') {
+      return res.status(400).json({ error: 'fileName is required' });
+    }
+    
     if (!contentType?.startsWith('image/')) {
       return res.status(400).json({ error: 'Only images are allowed' });
     }
@@ -179,6 +194,11 @@ router.post('/service-provider-category-image', authAdmin, async (req: Request, 
   try {
     const { fileName, contentType } = req.body;
     
+    // Validate fileName
+    if (!fileName || typeof fileName !== 'string' || fileName.trim() === '') {
+      return res.status(400).json({ error: 'fileName is required' });
+    }
+    
     if (!contentType?.startsWith('image/')) {
       return res.status(400).json({ error: 'Only images are allowed' });
     }
@@ -197,6 +217,11 @@ router.post('/service-provider-category-image', authAdmin, async (req: Request, 
 router.post('/service-provider-image', authAdmin, async (req: Request, res: Response) => {
   try {
     const { fileName, contentType } = req.body;
+    
+    // Validate fileName
+    if (!fileName || typeof fileName !== 'string' || fileName.trim() === '') {
+      return res.status(400).json({ error: 'fileName is required' });
+    }
     
     if (!contentType?.startsWith('image/')) {
       return res.status(400).json({ error: 'Only images are allowed' });

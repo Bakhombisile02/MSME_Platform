@@ -6,7 +6,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { body, param, validationResult, ValidationChain } from 'express-validator';
+import { body, param, query, validationResult, ValidationChain } from 'express-validator';
 import xss, { IFilterXSSOptions } from 'xss';
 
 // =============================================================================
@@ -143,14 +143,15 @@ export const validateVerificationStatus: ValidationChain = body('is_verified')
 
 /**
  * Validate pagination parameters
+ * Uses query() for GET request query string params
  */
 export function validatePagination(): ValidationChain[] {
   return [
-    body('page')
+    query('page')
       .optional()
       .isInt({ min: 1 })
       .withMessage('page must be a positive integer'),
-    body('limit')
+    query('limit')
       .optional()
       .isInt({ min: 1, max: 100 })
       .withMessage('limit must be between 1 and 100'),
@@ -159,13 +160,14 @@ export function validatePagination(): ValidationChain[] {
 
 /**
  * Validate filters for MSME business search
+ * Uses query() for GET request query string params
  */
 export function validateFilters(): ValidationChain[] {
   return [
-    body('region').optional().isString(),
-    body('category').optional().isString(),
-    body('search').optional().isString(),
-    body('is_verified').optional().isIn([1, 2, 3]),
+    query('region').optional().isString(),
+    query('category').optional().isString(),
+    query('search').optional().isString(),
+    query('is_verified').optional().isIn(['1', '2', '3', 1, 2, 3]),
   ];
 }
 

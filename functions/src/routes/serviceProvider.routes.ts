@@ -6,6 +6,7 @@
 
 import { Router, Request, Response } from 'express';
 import { body } from 'express-validator';
+import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
 
 import { authAdmin } from '../middleware/auth.middleware';
 import { handleValidationErrors, validateIdParam } from '../middleware/validation.middleware';
@@ -13,6 +14,7 @@ import { FirestoreRepo } from '../services/FirestoreRepository';
 import { COLLECTIONS, ServiceProvider, ServiceProviderCategory } from '../models/schemas';
 
 const router = Router();
+const db = getFirestore();
 
 // =============================================================================
 // SERVICE PROVIDER CATEGORIES
@@ -225,36 +227,50 @@ router.post('/add',
     try {
       const data = req.body;
       
-      // Get category name for denormalization
-      const category = await FirestoreRepo.findById<ServiceProviderCategory>(
-        COLLECTIONS.SERVICE_PROVIDER_CATEGORIES,
-        data.category_id
-      );
-      
-      const provider = await FirestoreRepo.create<ServiceProvider>(
-        COLLECTIONS.SERVICE_PROVIDERS,
-        {
-          ...data,
-          category_name: category?.category_name,
+      // Use transaction to atomically create provider and increment count
+      const provider = await db.runTransaction(async (transaction) => {
+        // Get category for denormalization
+        const categoryRef = db.collection(COLLECTIONS.SERVICE_PROVIDER_CATEGORIES).doc(data.category_id);
+        const categoryDoc = await transaction.get(categoryRef);
+        
+        if (!categoryDoc.exists) {
+          throw new Error('Category not found');
         }
-      );
-      
-      // Update category count
-      if (category) {
-        await FirestoreRepo.incrementField(
-          COLLECTIONS.SERVICE_PROVIDER_CATEGORIES,
-          data.category_id,
-          'providerCount',
-          1
-        );
-      }
+        
+        const category = categoryDoc.data() as ServiceProviderCategory;
+        
+        // Create provider document
+        const providerRef = db.collection(COLLECTIONS.SERVICE_PROVIDERS).doc();
+        const now = Timestamp.now();
+        const providerData = {
+          ...data,
+          id: providerRef.id,
+          category_name: category.category_name,
+          createdAt: now,
+          updatedAt: now,
+          deletedAt: null,
+        };
+        
+        transaction.set(providerRef, providerData);
+        
+        // Increment category count
+        transaction.update(categoryRef, {
+          providerCount: FieldValue.increment(1),
+          updatedAt: now,
+        });
+        
+        return providerData;
+      });
       
       res.status(201).json({
         message: 'Service provider created successfully',
         data: provider,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating service provider:', error);
+      if (error.message === 'Category not found') {
+        return res.status(404).json({ error: 'Category not found' });
+      }
       res.status(500).json({ error: 'Internal server error' });
     }
   }
@@ -299,34 +315,42 @@ router.delete('/delete/:id',
   handleValidationErrors,
   async (req: Request, res: Response) => {
     try {
-      // Get provider to decrement category count
-      const provider = await FirestoreRepo.findById<ServiceProvider>(
-        COLLECTIONS.SERVICE_PROVIDERS,
-        req.params.id
-      );
+      const providerId = req.params.id;
       
-      const deleted = await FirestoreRepo.softDelete(
-        COLLECTIONS.SERVICE_PROVIDERS,
-        req.params.id
-      );
-      
-      if (!deleted) {
-        return res.status(404).json({ error: 'Service provider not found' });
-      }
-      
-      // Decrement category count
-      if (provider?.category_id) {
-        await FirestoreRepo.incrementField(
-          COLLECTIONS.SERVICE_PROVIDER_CATEGORIES,
-          provider.category_id,
-          'providerCount',
-          -1
-        );
-      }
+      // Use transaction to atomically soft-delete provider and decrement count
+      await db.runTransaction(async (transaction) => {
+        const providerRef = db.collection(COLLECTIONS.SERVICE_PROVIDERS).doc(providerId);
+        const providerDoc = await transaction.get(providerRef);
+        
+        if (!providerDoc.exists) {
+          throw new Error('Provider not found');
+        }
+        
+        const provider = providerDoc.data() as ServiceProvider;
+        
+        // Soft delete the provider
+        const now = Timestamp.now();
+        transaction.update(providerRef, {
+          deletedAt: now,
+          updatedAt: now,
+        });
+        
+        // Decrement category count if category exists
+        if (provider.category_id) {
+          const categoryRef = db.collection(COLLECTIONS.SERVICE_PROVIDER_CATEGORIES).doc(provider.category_id);
+          transaction.update(categoryRef, {
+            providerCount: FieldValue.increment(-1),
+            updatedAt: now,
+          });
+        }
+      });
       
       res.json({ message: 'Service provider deleted successfully' });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting service provider:', error);
+      if (error.message === 'Provider not found') {
+        return res.status(404).json({ error: 'Service provider not found' });
+      }
       res.status(500).json({ error: 'Internal server error' });
     }
   }

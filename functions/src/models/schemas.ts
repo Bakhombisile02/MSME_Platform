@@ -88,6 +88,10 @@ export interface MSMEBusiness extends BaseDocument {
   reset_token?: string;
   reset_token_expires?: Timestamp;
   
+  // Password fields (for migrated users - new users use Firebase Auth)
+  password?: string;       // Legacy plaintext (should be removed after migration)
+  password_hash?: string;  // bcrypt hash
+  
   // Denormalized data for queries
   category_name?: string;
   sub_category_name?: string;

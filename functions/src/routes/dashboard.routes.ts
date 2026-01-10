@@ -800,12 +800,13 @@ router.get('/analytics/time-comparison/:period', async (req: Request, res: Respo
         previousEnd = new Date(currentStart.getTime() - 1);
         previousStart = new Date(previousEnd.getFullYear(), previousEnd.getMonth(), 1);
         break;
-      case 'quarter':
+      case 'quarter': {
         const currentQuarter = Math.floor(now.getMonth() / 3);
         currentStart = new Date(now.getFullYear(), currentQuarter * 3, 1);
         previousEnd = new Date(currentStart.getTime() - 1);
         previousStart = new Date(previousEnd.getFullYear(), Math.floor(previousEnd.getMonth() / 3) * 3, 1);
         break;
+      }
       default: // year
         currentStart = new Date(now.getFullYear(), 0, 1);
         previousEnd = new Date(currentStart.getTime() - 1);

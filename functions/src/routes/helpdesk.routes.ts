@@ -8,7 +8,7 @@ import { Router, Request, Response } from 'express';
 import { body } from 'express-validator';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 
-import { authAdmin, optionalAuth } from '../middleware/auth.middleware';
+import { authAdmin, authUser, optionalAuth } from '../middleware/auth.middleware';
 import { handleValidationErrors, validateIdParam } from '../middleware/validation.middleware';
 import { FirestoreRepo } from '../services/FirestoreRepository';
 import { sendHelpdeskEmail } from '../services/emailService';
@@ -160,20 +160,27 @@ router.get('/tickets', authAdmin, async (req: Request, res: Response) => {
 
 /**
  * GET /api/helpdesk/my-tickets
- * List user's own tickets
+ * List user's own tickets - requires authentication
  */
-router.get('/my-tickets', optionalAuth, async (req: Request, res: Response) => {
+router.get('/my-tickets', authUser, async (req: Request, res: Response) => {
   try {
-    const email = req.query.email as string;
+    // Use authenticated user's email from token, not query param (IDOR protection)
+    const authenticatedEmail = req.user?.email;
     
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
+    if (!authenticatedEmail) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    // If client provides email param, verify it matches authenticated user
+    const queryEmail = req.query.email as string;
+    if (queryEmail && queryEmail.toLowerCase() !== authenticatedEmail.toLowerCase()) {
+      return res.status(403).json({ error: 'Cannot access tickets for other users' });
     }
     
     const result = await FirestoreRepo.list<Ticket>(
       COLLECTIONS.TICKETS,
       {
-        searchParams: { email },
+        searchParams: { email: authenticatedEmail },
         orderBy: 'createdAt',
         orderDirection: 'desc',
       }
@@ -451,28 +458,43 @@ router.get('/stats', authAdmin, async (req: Request, res: Response) => {
 
 // Legacy route mapping for /api/contact
 router.get('/list', authAdmin, async (req: Request, res: Response) => {
-  // Forward to tickets list
-  const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || 20;
-  
-  const result = await FirestoreRepo.list<Ticket>(COLLECTIONS.TICKETS, {
-    limit,
-    offset: (page - 1) * limit,
-    orderBy: 'createdAt',
-    orderDirection: 'desc',
-  });
-  
-  res.json({ data: result.rows, pagination: { page, totalPages: result.totalPages, totalCount: result.count } });
+  try {
+    // Forward to tickets list
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    
+    const result = await FirestoreRepo.list<Ticket>(COLLECTIONS.TICKETS, {
+      limit,
+      offset: (page - 1) * limit,
+      orderBy: 'createdAt',
+      orderDirection: 'desc',
+    });
+    
+    res.json({ data: result.rows, pagination: { page, totalPages: result.totalPages, totalCount: result.count } });
+  } catch (error) {
+    console.error('Error listing tickets:', error);
+    res.status(500).json({ error: 'Failed to list tickets' });
+  }
 });
 
-router.post('/add', async (req: Request, res: Response) => {
-  // Forward to create
-  const ticket = await FirestoreRepo.create<Ticket>(COLLECTIONS.TICKETS, {
-    ...req.body,
-    status: 'open',
-    priority: 'medium',
-  });
-  res.status(201).json({ message: 'Ticket created', data: ticket });
+router.post('/add', [
+  body('name').notEmpty().withMessage('Name is required'),
+  body('email').isEmail().withMessage('Valid email is required'),
+  body('subject').notEmpty().withMessage('Subject is required'),
+  body('message').notEmpty().withMessage('Message is required'),
+], handleValidationErrors, async (req: Request, res: Response) => {
+  try {
+    // Forward to create
+    const ticket = await FirestoreRepo.create<Ticket>(COLLECTIONS.TICKETS, {
+      ...req.body,
+      status: 'open',
+      priority: 'medium',
+    });
+    res.status(201).json({ message: 'Ticket created', data: ticket });
+  } catch (error) {
+    console.error('Error creating ticket:', error);
+    res.status(500).json({ error: 'Failed to create ticket' });
+  }
 });
 
 // =============================================================================

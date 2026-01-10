@@ -18,11 +18,12 @@ service firebase.storage {
     }
     
     function isValidDocument() {
-      return request.resource.contentType.matches('application/pdf')
+      return (request.resource.contentType.matches('application/pdf')
         || request.resource.contentType.matches('application/msword')
         || request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.*')
         || request.resource.contentType.matches('application/vnd.ms-excel')
-        || request.resource.contentType.matches('application/vnd.ms-powerpoint');
+        || request.resource.contentType.matches('application/vnd.ms-powerpoint'))
+        && request.resource.size < 50 * 1024 * 1024; // 50MB
     }
     
     // ==========================================================================

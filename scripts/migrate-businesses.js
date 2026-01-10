@@ -63,14 +63,16 @@ const transform = (row) => ({
   business_profile_url: row.business_profile_url || '',
   business_image_url: row.business_image_url || '',
   incorporation_image_url: row.incorporation_image_url || '',
-  password: row.password || '',
+  // Do NOT migrate passwords - users must use Firebase Auth or reset password
+  // password field intentionally omitted for security
   is_verified: row.is_verified || '1',
   is_verified_comments: row.is_verified_comments || '',
-  otp: row.otp || null,
-  otp_expiry: toTimestamp(row.otp_expiry),
-  otp_verified: row.otp_verified === 1,
-  reset_token: row.reset_token || null,
-  reset_token_expiry: toTimestamp(row.reset_token_expiry),
+  // Invalidate all time-bound credentials - users must request new ones
+  otp: null,
+  otp_expiry: null,
+  otp_verified: false,
+  reset_token: null,
+  reset_token_expiry: null,
   lat: row.lat || '',
   longe: row.longe || '',
   ownership_type: row.ownership_type || '',

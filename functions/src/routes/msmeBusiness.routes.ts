@@ -33,51 +33,77 @@ const auth = getAuth();
 const db = getFirestore();
 
 // =============================================================================
-// OTP RATE LIMITING (In-memory for development, use Redis in production)
+// OTP RATE LIMITING (Firestore-based for stateless Cloud Functions)
 // =============================================================================
 
-const otpAttempts = new Map<string, { attempts: number; lockoutUntil?: number }>();
+const OTP_RATE_LIMIT_COLLECTION = 'otp_rate_limits';
 const OTP_MAX_ATTEMPTS = 5;
 const OTP_LOCKOUT_MINUTES = 30;
 
-function checkOtpRateLimit(email: string): { allowed: boolean; message?: string } {
+async function checkOtpRateLimit(email: string): Promise<{ allowed: boolean; message?: string }> {
   const key = email.toLowerCase();
-  const record = otpAttempts.get(key);
+  const docRef = db.collection(OTP_RATE_LIMIT_COLLECTION).doc(key);
   
-  if (!record) return { allowed: true };
-  
-  if (record.lockoutUntil && record.lockoutUntil > Date.now()) {
-    const minutesLeft = Math.ceil((record.lockoutUntil - Date.now()) / 60000);
-    return { 
-      allowed: false, 
-      message: `Too many failed attempts. Please try again in ${minutesLeft} minutes.`
-    };
-  }
-  
-  if (record.lockoutUntil && record.lockoutUntil <= Date.now()) {
-    otpAttempts.delete(key);
+  try {
+    const doc = await docRef.get();
+    if (!doc.exists) return { allowed: true };
+    
+    const record = doc.data();
+    if (!record) return { allowed: true };
+    
+    // Check if locked out
+    if (record.lockoutUntil) {
+      const lockoutTime = record.lockoutUntil.toDate ? record.lockoutUntil.toDate() : new Date(record.lockoutUntil);
+      if (lockoutTime > new Date()) {
+        const minutesLeft = Math.ceil((lockoutTime.getTime() - Date.now()) / 60000);
+        return { 
+          allowed: false, 
+          message: `Too many failed attempts. Please try again in ${minutesLeft} minutes.`
+        };
+      }
+      // Lockout expired, reset the record
+      await docRef.delete();
+      return { allowed: true };
+    }
+    
     return { allowed: true };
+  } catch (error) {
+    console.error('Error checking OTP rate limit:', error);
+    return { allowed: true }; // Allow on error to not block users
   }
-  
-  return { allowed: true };
 }
 
-function recordOtpAttempt(email: string, success: boolean): void {
+async function recordOtpAttempt(email: string, success: boolean): Promise<void> {
   const key = email.toLowerCase();
+  const docRef = db.collection(OTP_RATE_LIMIT_COLLECTION).doc(key);
   
-  if (success) {
-    otpAttempts.delete(key);
-    return;
+  try {
+    if (success) {
+      // Reset on success
+      await docRef.delete();
+      return;
+    }
+    
+    // Use transaction to atomically increment attempts
+    await db.runTransaction(async (transaction) => {
+      const doc = await transaction.get(docRef);
+      const record = doc.data() || { attempts: 0 };
+      const newAttempts = (record.attempts || 0) + 1;
+      
+      const updateData: Record<string, any> = {
+        attempts: newAttempts,
+        lastAttempt: Timestamp.now(),
+      };
+      
+      if (newAttempts >= OTP_MAX_ATTEMPTS) {
+        updateData.lockoutUntil = Timestamp.fromMillis(Date.now() + (OTP_LOCKOUT_MINUTES * 60 * 1000));
+      }
+      
+      transaction.set(docRef, updateData, { merge: true });
+    });
+  } catch (error) {
+    console.error('Error recording OTP attempt:', error);
   }
-  
-  const record = otpAttempts.get(key) || { attempts: 0 };
-  record.attempts += 1;
-  
-  if (record.attempts >= OTP_MAX_ATTEMPTS) {
-    record.lockoutUntil = Date.now() + (OTP_LOCKOUT_MINUTES * 60 * 1000);
-  }
-  
-  otpAttempts.set(key, record);
 }
 
 // =============================================================================
@@ -224,9 +250,27 @@ router.post('/login',
         return res.status(401).json({ error: 'Invalid email or password' });
       }
       
-      // For Firebase Auth, we don't store passwords in Firestore
-      // Instead, we create a custom token for the user
-      // The actual password verification happens on the client via Firebase Auth
+      // Verify password if stored (for migrated users)
+      // Note: New users authenticate via Firebase Auth on client
+      if (business.password_hash) {
+        const passwordValid = await bcrypt.compare(password, business.password_hash);
+        if (!passwordValid) {
+          return res.status(401).json({ error: 'Invalid email or password' });
+        }
+      } else if (business.password) {
+        // Legacy plaintext password (from migration) - should be hashed
+        // Compare and update to hash if matches
+        if (password !== business.password) {
+          return res.status(401).json({ error: 'Invalid email or password' });
+        }
+        // Upgrade to hashed password
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await FirestoreRepo.update(COLLECTIONS.MSME_BUSINESSES, business.id!, {
+          password_hash: hashedPassword,
+          password: null, // Remove plaintext
+        });
+      }
+      // If no password stored, this user uses Firebase Auth client-side
       
       // Create custom token for the user
       const customToken = await auth.createCustomToken(business.userId, {
@@ -770,7 +814,7 @@ router.post('/forget-password/request-otp',
       const { email } = req.body;
       
       // Rate limit check
-      const rateCheck = checkOtpRateLimit(email);
+      const rateCheck = await checkOtpRateLimit(email);
       if (!rateCheck.allowed) {
         return res.status(429).json({ error: rateCheck.message });
       }
@@ -826,7 +870,7 @@ router.post('/forget-password/verify-otp',
       const { email, otp } = req.body;
       
       // Rate limit check
-      const rateCheck = checkOtpRateLimit(email);
+      const rateCheck = await checkOtpRateLimit(email);
       if (!rateCheck.allowed) {
         return res.status(429).json({ error: rateCheck.message });
       }

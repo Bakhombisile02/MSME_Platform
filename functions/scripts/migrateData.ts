@@ -12,6 +12,7 @@ import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import * as mysql from 'mysql2/promise';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 // Load service account from environment or file
 // const serviceAccount = require('../../serviceAccountKey.json');
@@ -97,12 +98,15 @@ async function migrateAdmins(connection: mysql.Connection): Promise<MigrationRes
       try {
         const docId = toFirestoreId(admin.id, 'admin');
         
-        // Create Firebase Auth user
+        // Create Firebase Auth user with secure random password
         let firebaseUid: string | undefined;
         try {
+          // Generate a cryptographically secure random password (not stored/logged)
+          const securePassword = crypto.randomBytes(32).toString('base64url');
+          
           const userRecord = await auth.createUser({
             email: admin.email,
-            password: 'ChangeMe123!', // Set temporary password
+            password: securePassword,
             displayName: `${admin.first_name} ${admin.last_name}`,
           });
           firebaseUid = userRecord.uid;
@@ -112,6 +116,16 @@ async function migrateAdmins(connection: mysql.Connection): Promise<MigrationRes
             admin: true, 
             role: admin.role || 'admin' 
           });
+          
+          // Generate password reset link for admin to set their own password
+          try {
+            const resetLink = await auth.generatePasswordResetLink(admin.email);
+            console.log(`Password reset link generated for admin ${admin.email}`);
+            // TODO: Send reset link via email service
+            // await sendPasswordResetEmail(admin.email, resetLink);
+          } catch (resetError) {
+            console.error(`Failed to generate reset link for ${admin.email}:`, resetError);
+          }
         } catch (authError: any) {
           if (authError.code !== 'auth/email-already-exists') {
             throw authError;
@@ -523,7 +537,17 @@ async function migrateServiceProviders(connection: mysql.Connection): Promise<Mi
 
 /**
  * Generic migration for simple tables
+ * 
+ * SECURITY: tableName is validated against allowlist to prevent SQL injection
  */
+
+// Allowlist of valid MySQL table names that can be migrated
+const ALLOWED_TABLES = new Set([
+  'blog', 'faq', 'home_banner', 'partners_logo', 'team_member', 
+  'downloads', 'subscriber', 'feedback', 'contact_us',
+  'ticket_category', 'ticket', 'ticket_responses'
+]);
+
 async function migrateSimpleTable(
   connection: mysql.Connection,
   tableName: string,
@@ -533,8 +557,15 @@ async function migrateSimpleTable(
 ): Promise<MigrationResult> {
   const result: MigrationResult = { collection: collectionName, success: 0, failed: 0, errors: [] };
   
+  // Validate table name against allowlist to prevent SQL injection
+  if (!ALLOWED_TABLES.has(tableName)) {
+    result.errors.push(`Invalid table name: ${tableName}. Not in allowed tables list.`);
+    return result;
+  }
+  
   try {
-    const [rows] = await connection.execute(`SELECT * FROM ${tableName}`);
+    // Table name is validated above, safe to use in query
+    const [rows] = await connection.execute(`SELECT * FROM \`${tableName}\``);
     const items = rows as any[];
     
     for (const item of items) {

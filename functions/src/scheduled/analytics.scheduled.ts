@@ -137,6 +137,7 @@ export const cleanupExpiredOTPs = functions.scheduler.onSchedule(
   async (event) => {
     try {
       const now = Timestamp.now();
+      const BATCH_LIMIT = 500;
       
       // Find businesses with expired OTPs
       const expiredOtpSnapshot = await db.collection(COLLECTIONS.MSME_BUSINESSES)
@@ -150,27 +151,50 @@ export const cleanupExpiredOTPs = functions.scheduler.onSchedule(
         .where('reset_token', '!=', null)
         .get();
       
-      const batch = db.batch();
+      // Combine all docs to process
+      const allDocs = [...expiredOtpSnapshot.docs, ...expiredTokenSnapshot.docs];
       let cleanupCount = 0;
+      let batch = db.batch();
+      let opCount = 0;
       
-      expiredOtpSnapshot.docs.forEach(doc => {
+      for (const doc of expiredOtpSnapshot.docs) {
         batch.update(doc.ref, {
           reset_otp: null,
           reset_otp_expires: null,
         });
+        opCount++;
         cleanupCount++;
-      });
+        
+        // Commit and reset batch when limit reached
+        if (opCount >= BATCH_LIMIT) {
+          await batch.commit();
+          batch = db.batch();
+          opCount = 0;
+        }
+      }
       
-      expiredTokenSnapshot.docs.forEach(doc => {
+      for (const doc of expiredTokenSnapshot.docs) {
         batch.update(doc.ref, {
           reset_token: null,
           reset_token_expires: null,
         });
+        opCount++;
         cleanupCount++;
-      });
+        
+        // Commit and reset batch when limit reached
+        if (opCount >= BATCH_LIMIT) {
+          await batch.commit();
+          batch = db.batch();
+          opCount = 0;
+        }
+      }
+      
+      // Commit remaining operations
+      if (opCount > 0) {
+        await batch.commit();
+      }
       
       if (cleanupCount > 0) {
-        await batch.commit();
         console.log(`Cleaned up ${cleanupCount} expired OTPs/tokens`);
       }
     } catch (error) {
@@ -200,6 +224,7 @@ export const generateMonthlyAnalytics = functions.scheduler.onSchedule(
         .where('type', '==', 'daily')
         .where('period', '>=', `${period}-01`)
         .where('period', '<=', `${period}-31`)
+        .orderBy('period', 'asc')
         .get();
       
       if (dailySnapshots.empty) {

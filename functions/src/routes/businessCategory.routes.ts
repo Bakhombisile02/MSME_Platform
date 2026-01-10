@@ -281,12 +281,17 @@ router.post('/sub/add',
         category_id
       );
       
+      // Verify parent category exists
+      if (!category) {
+        return res.status(404).json({ error: 'Parent category not found' });
+      }
+      
       const subCategory = await FirestoreRepo.create<BusinessSubCategory>(
         COLLECTIONS.BUSINESS_SUB_CATEGORIES,
         {
           sub_category_name,
           category_id,
-          category_name: category?.category_name,
+          category_name: category.category_name,
           description,
         }
       );

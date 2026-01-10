@@ -197,18 +197,25 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
  */
 export function verifyResourceOwnership(paramName: string = 'id') {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    if (!req.user || !req.business) {
+    // First check if user is authenticated
+    if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
     
-    const resourceId = req.params[paramName];
-    
-    // Admin can access any resource
+    // Admin can access any resource - check this BEFORE business check
     if (req.user.role === 'admin') {
       next();
       return;
     }
+    
+    // Non-admin users must have a business loaded
+    if (!req.business) {
+      res.status(401).json({ error: 'Unauthorized - no business context' });
+      return;
+    }
+    
+    const resourceId = req.params[paramName];
     
     // User can only access their own business
     if (req.business.id !== resourceId) {

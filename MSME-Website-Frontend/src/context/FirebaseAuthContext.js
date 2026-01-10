@@ -189,14 +189,21 @@ export function AuthProvider({ children }) {
       throw new Error('Not authenticated');
     }
 
+    // Verify auth.currentUser exists before getting token
+    if (!auth.currentUser) {
+      throw new Error('No authenticated session. Please log in again.');
+    }
+
     try {
+      const token = await auth.currentUser.getIdToken();
+      
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || ''}/api/msme-business/change-password`,
         {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${await auth.currentUser?.getIdToken()}`,
+            'Authorization': `Bearer ${token}`,
           },
           body: JSON.stringify({ 
             current_password: currentPassword, 
@@ -228,8 +235,19 @@ export function AuthProvider({ children }) {
       throw new Error('Not authenticated');
     }
 
+    // Verify business and business.id exist
+    if (!business || !business.id) {
+      console.error('updateProfile failed: business or business.id is missing');
+      throw new Error('No business profile found. Please refresh and try again.');
+    }
+
+    // Verify auth.currentUser exists before getting token
+    if (!auth.currentUser) {
+      throw new Error('No authenticated session. Please log in again.');
+    }
+
     try {
-      const token = await auth.currentUser?.getIdToken();
+      const token = await auth.currentUser.getIdToken();
       
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || ''}/api/msme-business/${business.id}`,

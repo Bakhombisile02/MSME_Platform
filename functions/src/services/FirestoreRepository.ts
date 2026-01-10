@@ -204,7 +204,8 @@ export async function findById<T = any>(
   if (!doc.exists) return null;
   
   const data = doc.data() as any;
-  if (!includeDeleted && data.deletedAt !== null) return null;
+  // Treat any truthy deletedAt as deleted (handles null, undefined, and Timestamp)
+  if (!includeDeleted && data.deletedAt) return null;
   
   return convertTimestamps(data) as T;
 }
@@ -383,13 +384,20 @@ export async function hardDelete(
 
 /**
  * Count documents
+ * Note: Excludes soft-deleted documents by default
  */
 export async function count(
   collectionName: string,
   params: ListParams = {}
 ): Promise<number> {
   const collection = db.collection(collectionName);
-  const query = buildQuery(collection, params);
+  let query = buildQuery(collection, params);
+  
+  // Add soft-delete filter unless includeDeleted is true
+  if (!params.includeDeleted) {
+    query = query.where('deletedAt', '==', null);
+  }
+  
   const snapshot = await query.count().get();
   return snapshot.data().count;
 }

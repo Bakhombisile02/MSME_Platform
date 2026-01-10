@@ -106,8 +106,13 @@ export const onMSMEBusinessUpdated = functions.firestore.onDocumentUpdated(
           );
           
           if (category) {
+            const docId = afterData.id;
+            if (!docId) {
+              console.error('Cannot update category_name: afterData.id is undefined');
+              return;
+            }
             await db.collection(COLLECTIONS.MSME_BUSINESSES)
-              .doc(afterData.id!)
+              .doc(docId)
               .update({ category_name: category.category_name });
           }
         }

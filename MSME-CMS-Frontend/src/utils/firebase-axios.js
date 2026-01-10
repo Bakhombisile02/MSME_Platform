@@ -36,6 +36,12 @@ axiosInstance.interceptors.request.use(
   }
 );
 
+// Get base path for redirects
+const getLoginPath = () => {
+  const basePath = import.meta.env.BASE_URL || '/';
+  return basePath.endsWith('/') ? `${basePath}login` : `${basePath}/login`;
+};
+
 // Response interceptor - handle errors with SweetAlert
 axiosInstance.interceptors.response.use(
   (response) => response,
@@ -50,23 +56,38 @@ axiosInstance.interceptors.response.use(
         if (originalRequest._retry) {
           // Already retried, sign out and redirect
           await auth.signOut();
-          window.location.href = '/login';
+          window.location.href = getLoginPath();
+          return Promise.reject(error);
+        }
+        
+        // Mark as retried
+        originalRequest._retry = true;
+        
+        // Check if user is signed in
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          // No user session - show session expired and redirect
+          Swal.fire({
+            icon: 'warning',
+            title: 'Session Expired',
+            text: 'Your session has expired. Please log in again.',
+            confirmButtonText: 'Login',
+            confirmButtonColor: '#3085d6',
+            allowOutsideClick: false,
+          }).then(() => {
+            auth.signOut();
+            window.location.href = getLoginPath();
+          });
           return Promise.reject(error);
         }
         
         try {
-          // Mark as retried
-          originalRequest._retry = true;
-          
           // Try to refresh token
-          const currentUser = auth.currentUser;
-          if (currentUser) {
-            const newToken = await currentUser.getIdToken(true);
-            
-            // Retry the original request
-            originalRequest.headers.Authorization = `Bearer ${newToken}`;
-            return axiosInstance(originalRequest);
-          }
+          const newToken = await currentUser.getIdToken(true);
+          
+          // Retry the original request
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return axiosInstance(originalRequest);
         } catch (refreshError) {
           // Show session expired alert
           Swal.fire({
@@ -78,7 +99,7 @@ axiosInstance.interceptors.response.use(
             allowOutsideClick: false,
           }).then(() => {
             auth.signOut();
-            window.location.href = '/login';
+            window.location.href = getLoginPath();
           });
         }
         return Promise.reject(error);

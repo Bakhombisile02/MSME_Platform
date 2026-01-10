@@ -517,14 +517,18 @@ async function migrate() {
     
   } catch (error) {
     console.error('\n❌ Migration failed:', error);
+    exitCode = 1;
   } finally {
     if (connection) {
       await connection.end();
       console.log('📡 MySQL connection closed');
     }
-    process.exit(0);
+    process.exit(exitCode);
   }
 }
+
+// Track exit code for success/failure
+let exitCode = 0;
 
 // Run migration
 migrate();

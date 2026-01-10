@@ -99,60 +99,60 @@ const emailTemplates = {
 // Help desk email templates
 const helpdeskTemplates = {
   ticketCreated: {
-    subject: (ticketId: string) => `Ticket ${ticketId} - We received your request`,
+    subject: (ticketId: string) => `Ticket ${escapeHtml(ticketId)} - We received your request`,
     template: (data: any) => `
       <h2>Support Request Received</h2>
-      <p>Dear ${data.name},</p>
+      <p>Dear ${escapeHtml(data.name)},</p>
       <p>Thank you for contacting us. We have received your support request.</p>
       <p><strong>Ticket Details:</strong></p>
       <ul>
-        <li>Ticket ID: ${data.ticket_id}</li>
-        <li>Subject: ${data.subject}</li>
-        <li>Category: ${data.category_name || 'General'}</li>
+        <li>Ticket ID: ${escapeHtml(data.ticket_id)}</li>
+        <li>Subject: ${escapeHtml(data.subject)}</li>
+        <li>Category: ${escapeHtml(data.category_name || 'General')}</li>
       </ul>
       <p>Our team will review your request and respond as soon as possible.</p>
       <p>Best regards,<br>MSME Support Team</p>
     `,
   },
   ticketResponse: {
-    subject: (ticketId: string) => `Ticket ${ticketId} - New Response`,
+    subject: (ticketId: string) => `Ticket ${escapeHtml(ticketId)} - New Response`,
     template: (data: any) => `
       <h2>New Response on Your Ticket</h2>
-      <p>Dear ${data.name},</p>
+      <p>Dear ${escapeHtml(data.name)},</p>
       <p>There is a new response on your support ticket.</p>
-      <p><strong>Ticket:</strong> ${data.ticket_id} - ${data.subject}</p>
+      <p><strong>Ticket:</strong> ${escapeHtml(data.ticket_id)} - ${escapeHtml(data.subject)}</p>
       <hr>
-      <p>${data.response_message}</p>
+      <p>${escapeHtml(data.response_message).replace(/\n/g, '<br>')}</p>
       <hr>
       <p>Best regards,<br>MSME Support Team</p>
     `,
   },
   ticketAssigned: {
-    subject: (ticketId: string) => `Ticket ${ticketId} - Assigned to you`,
+    subject: (ticketId: string) => `Ticket ${escapeHtml(ticketId)} - Assigned to you`,
     template: (data: any) => `
       <h2>New Ticket Assigned</h2>
-      <p>Dear ${data.admin_name},</p>
+      <p>Dear ${escapeHtml(data.admin_name)},</p>
       <p>A new ticket has been assigned to you.</p>
       <p><strong>Ticket Details:</strong></p>
       <ul>
-        <li>Ticket ID: ${data.ticket_id}</li>
-        <li>Subject: ${data.subject}</li>
-        <li>Priority: ${data.priority}</li>
-        <li>From: ${data.customer_name} (${data.customer_email})</li>
+        <li>Ticket ID: ${escapeHtml(data.ticket_id)}</li>
+        <li>Subject: ${escapeHtml(data.subject)}</li>
+        <li>Priority: ${escapeHtml(data.priority)}</li>
+        <li>From: ${escapeHtml(data.customer_name)} (${escapeHtml(data.customer_email)})</li>
       </ul>
       <p>Please log in to the CMS to view and respond.</p>
       <p>Best regards,<br>MSME Platform</p>
     `,
   },
   ticketStatusChanged: {
-    subject: (ticketId: string, status: string) => `Ticket ${ticketId} - Status: ${status}`,
+    subject: (ticketId: string, status: string) => `Ticket ${escapeHtml(ticketId)} - Status: ${escapeHtml(status)}`,
     template: (data: any) => `
       <h2>Ticket Status Update</h2>
-      <p>Dear ${data.name},</p>
+      <p>Dear ${escapeHtml(data.name)},</p>
       <p>Your support ticket status has been updated.</p>
-      <p><strong>Ticket:</strong> ${data.ticket_id} - ${data.subject}</p>
-      <p><strong>New Status:</strong> ${data.status}</p>
-      ${data.resolution_notes ? `<p><strong>Resolution Notes:</strong> ${data.resolution_notes}</p>` : ''}
+      <p><strong>Ticket:</strong> ${escapeHtml(data.ticket_id)} - ${escapeHtml(data.subject)}</p>
+      <p><strong>New Status:</strong> ${escapeHtml(data.status)}</p>
+      ${data.resolution_notes ? `<p><strong>Resolution Notes:</strong> ${escapeHtml(data.resolution_notes)}</p>` : ''}
       <p>Best regards,<br>MSME Support Team</p>
     `,
   },
@@ -254,11 +254,11 @@ export async function sendCriticalErrorEmail(
       subject: `[CRITICAL] MSME Platform Error: ${errorType}`,
       html: `
         <h2>Critical System Error</h2>
-        <p><strong>Type:</strong> ${errorType}</p>
-        <p><strong>Message:</strong> ${errorMessage}</p>
+        <p><strong>Type:</strong> ${escapeHtml(errorType)}</p>
+        <p><strong>Message:</strong> ${escapeHtml(errorMessage)}</p>
         <p><strong>Time:</strong> ${new Date().toISOString()}</p>
         <h3>Context:</h3>
-        <pre>${JSON.stringify(context, null, 2)}</pre>
+        <pre>${escapeHtml(JSON.stringify(context, null, 2))}</pre>
       `,
     });
     
