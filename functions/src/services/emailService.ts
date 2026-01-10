@@ -99,7 +99,7 @@ const emailTemplates = {
 // Help desk email templates
 const helpdeskTemplates = {
   ticketCreated: {
-    subject: (ticketId: string) => `Ticket ${escapeHtml(ticketId)} - We received your request`,
+    subject: (ticketId: string) => `Ticket ${ticketId} - We received your request`,
     template: (data: any) => `
       <h2>Support Request Received</h2>
       <p>Dear ${escapeHtml(data.name)},</p>
@@ -115,7 +115,7 @@ const helpdeskTemplates = {
     `,
   },
   ticketResponse: {
-    subject: (ticketId: string) => `Ticket ${escapeHtml(ticketId)} - New Response`,
+    subject: (ticketId: string) => `Ticket ${ticketId} - New Response`,
     template: (data: any) => `
       <h2>New Response on Your Ticket</h2>
       <p>Dear ${escapeHtml(data.name)},</p>
@@ -128,7 +128,7 @@ const helpdeskTemplates = {
     `,
   },
   ticketAssigned: {
-    subject: (ticketId: string) => `Ticket ${escapeHtml(ticketId)} - Assigned to you`,
+    subject: (ticketId: string) => `Ticket ${ticketId} - Assigned to you`,
     template: (data: any) => `
       <h2>New Ticket Assigned</h2>
       <p>Dear ${escapeHtml(data.admin_name)},</p>
@@ -145,7 +145,7 @@ const helpdeskTemplates = {
     `,
   },
   ticketStatusChanged: {
-    subject: (ticketId: string, status: string) => `Ticket ${escapeHtml(ticketId)} - Status: ${escapeHtml(status)}`,
+    subject: (ticketId: string, status: string) => `Ticket ${ticketId} - Status: ${status}`,
     template: (data: any) => `
       <h2>Ticket Status Update</h2>
       <p>Dear ${escapeHtml(data.name)},</p>

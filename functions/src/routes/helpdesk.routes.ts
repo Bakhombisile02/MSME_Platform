@@ -484,13 +484,51 @@ router.post('/add', [
   body('message').notEmpty().withMessage('Message is required'),
 ], handleValidationErrors, async (req: Request, res: Response) => {
   try {
-    // Forward to create
+    const { name, email, phone, subject, message, category_id } = req.body;
+    
+    // Generate ticket ID (consistent with /create route)
+    const ticket_id = await generateTicketId();
+    
+    // Get category name if provided
+    let category_name: string | undefined;
+    if (category_id) {
+      const category = await FirestoreRepo.findById<TicketCategory>(
+        COLLECTIONS.TICKET_CATEGORIES,
+        category_id
+      );
+      category_name = category?.name;
+    }
+    
     const ticket = await FirestoreRepo.create<Ticket>(COLLECTIONS.TICKETS, {
-      ...req.body,
-      status: 'open',
-      priority: 'medium',
+      ticket_id,
+      name,
+      email,
+      phone,
+      subject,
+      message,
+      category_id,
+      category_name,
+      status: 'open' as TicketStatus,
+      priority: 'medium' as TicketPriority,
     });
-    res.status(201).json({ message: 'Ticket created', data: ticket });
+    
+    // Update category count
+    if (category_id) {
+      await FirestoreRepo.incrementField(
+        COLLECTIONS.TICKET_CATEGORIES,
+        category_id,
+        'ticketCount',
+        1
+      );
+    }
+    
+    // Send confirmation email (consistent with /create route)
+    await sendHelpdeskEmail('ticketCreated', ticket, email);
+    
+    res.status(201).json({
+      message: 'Ticket created successfully',
+      data: { ticket_id, id: ticket.id }
+    });
   } catch (error) {
     console.error('Error creating ticket:', error);
     res.status(500).json({ error: 'Failed to create ticket' });

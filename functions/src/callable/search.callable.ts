@@ -112,16 +112,19 @@ export const searchBusinesses = functions.https.onCall(
         results = results.filter(r => r.category === filters.category);
       }
       
-      // Paginate filtered results
-      const paginatedResults = results.slice(0, limit);
-      const lastDoc = paginatedResults.length > 0 ? paginatedResults[paginatedResults.length - 1].id : null;
-      const hasMore = results.length > limit;
+      // Calculate offset-based pagination
+      const offset = (page - 1) * limit;
+      const paginatedResults = results.slice(offset, offset + limit);
+      const totalResults = results.length;
+      const totalPages = Math.ceil(totalResults / limit);
+      const hasMore = page < totalPages;
       
       return { 
         results: paginatedResults, 
-        total: paginatedResults.length,
+        total: totalResults,
         page,
-        nextCursor: hasMore ? lastDoc : null,
+        totalPages,
+        hasMore,
         note: 'Using Firestore prefix search. Enable Algolia for full-text search.'
       };
     } catch (error) {

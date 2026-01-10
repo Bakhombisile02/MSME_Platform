@@ -513,7 +513,13 @@ async function migrate() {
     }
     console.log('='.repeat(60));
     
-    console.log('\n✅ Migration completed!\n');
+    // Set exit code based on failures
+    if (stats.failed > 0) {
+      console.log('\n⚠️ Migration completed with errors!\n');
+      exitCode = 1;
+    } else {
+      console.log('\n✅ Migration completed successfully!\n');
+    }
     
   } catch (error) {
     console.error('\n❌ Migration failed:', error);

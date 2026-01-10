@@ -328,6 +328,11 @@ router.delete('/delete/:id',
         
         const provider = providerDoc.data() as ServiceProvider;
         
+        // Check if already deleted
+        if (provider.deletedAt) {
+          throw new Error('Provider already deleted');
+        }
+        
         // Soft delete the provider
         const now = Timestamp.now();
         transaction.update(providerRef, {
@@ -335,13 +340,16 @@ router.delete('/delete/:id',
           updatedAt: now,
         });
         
-        // Decrement category count if category exists
+        // Decrement category count if category exists and is not deleted
         if (provider.category_id) {
           const categoryRef = db.collection(COLLECTIONS.SERVICE_PROVIDER_CATEGORIES).doc(provider.category_id);
-          transaction.update(categoryRef, {
-            providerCount: FieldValue.increment(-1),
-            updatedAt: now,
-          });
+          const categoryDoc = await transaction.get(categoryRef);
+          if (categoryDoc.exists && !categoryDoc.data()?.deletedAt) {
+            transaction.update(categoryRef, {
+              providerCount: FieldValue.increment(-1),
+              updatedAt: now,
+            });
+          }
         }
       });
       

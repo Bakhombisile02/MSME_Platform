@@ -151,8 +151,6 @@ export const cleanupExpiredOTPs = functions.scheduler.onSchedule(
         .where('reset_token', '!=', null)
         .get();
       
-      // Combine all docs to process
-      const allDocs = [...expiredOtpSnapshot.docs, ...expiredTokenSnapshot.docs];
       let cleanupCount = 0;
       let batch = db.batch();
       let opCount = 0;

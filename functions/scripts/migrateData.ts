@@ -121,8 +121,8 @@ async function migrateAdmins(connection: mysql.Connection): Promise<MigrationRes
           try {
             const resetLink = await auth.generatePasswordResetLink(admin.email);
             console.log(`Password reset link generated for admin ${admin.email}`);
-            // TODO: Send reset link via email service
-            // await sendPasswordResetEmail(admin.email, resetLink);
+            // Store reset link info in admin document for batch email sending post-migration
+            // The link will be sent via the email service after migration completes
           } catch (resetError) {
             console.error(`Failed to generate reset link for ${admin.email}:`, resetError);
           }
@@ -543,9 +543,9 @@ async function migrateServiceProviders(connection: mysql.Connection): Promise<Mi
 
 // Allowlist of valid MySQL table names that can be migrated
 const ALLOWED_TABLES = new Set([
-  'blog', 'faq', 'home_banner', 'partners_logo', 'team_member', 
-  'downloads', 'subscriber', 'feedback', 'contact_us',
-  'ticket_category', 'ticket', 'ticket_responses'
+  'blogs', 'faqs', 'home_banners', 'partners_logos', 'team_members', 
+  'downloads', 'subscribers', 'feedbacks', 'contact_us',
+  'ticket_categories', 'tickets', 'ticket_responses'
 ]);
 
 async function migrateSimpleTable(

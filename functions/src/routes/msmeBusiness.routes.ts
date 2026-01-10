@@ -69,7 +69,8 @@ async function checkOtpRateLimit(email: string): Promise<{ allowed: boolean; mes
     return { allowed: true };
   } catch (error) {
     console.error('Error checking OTP rate limit:', error);
-    return { allowed: true }; // Allow on error to not block users
+    // Fail-closed for security - deny on error to prevent abuse during outages
+    return { allowed: false, message: 'Service temporarily unavailable. Please try again.' };
   }
 }
 
