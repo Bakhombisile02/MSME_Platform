@@ -7,16 +7,19 @@ const Subscribers = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalData,setTotalData]=useState(0);
+  const [error, setError] = useState(null);
   const limit = 10;
 
   const fetchData = async (page, limit) => {
     try {
       const data = await getSubscriberList(page, limit);
       setData(data?.values?.rows || []);
-      setTotalData(data.total);
+      setTotalData(data?.total ?? 0);
       setTotalPages(data?.total_pages || 1);
+      setError(null);
     } catch (err) {
-      console.error("Error fetching feedback", err);
+      setError(err.message || String(err));
+      setData([]);
     }
   };
 
@@ -36,8 +39,6 @@ const Subscribers = () => {
     const response = await getSubscriberList( 1, 200 );
     if ( response?.values?.rows ) {
       exportSubscriberListToExcel( response.values.rows || [] );
-    } else {
-      console.error( "No rows to export" );
     }
   };
  
@@ -61,6 +62,11 @@ const Subscribers = () => {
           </div>
           </div>
       </div>
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md mb-6">
+          {error}
+        </div>
+      )}
       <div className="bg-white shadow-lg  text-primary-950 pb-5 overflow-x-auto text-sm ">
           <table className="min-w-full text-sm ">
             <thead className="bg-primary-950/5 py-5">

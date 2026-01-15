@@ -59,7 +59,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === 'true') {
     connectStorageEmulator(storage, 'localhost', 9199);
     connectFunctionsEmulator(functions, 'localhost', 5001);
     console.log('Connected to Firebase emulators');
-  } catch (error) {
+  } catch {
     console.warn('Emulators already connected or unavailable');
   }
 }

@@ -23,7 +23,6 @@ const Login = () => {
     e.preventDefault();
     try {
       const res = await loginUser(data);
-      console.log("clg",res)
       if (res.status === 200) {
         Swal.fire({
           icon: "success",

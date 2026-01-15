@@ -356,7 +356,6 @@ const Page = () => {
     try {
       setLoading( true );
       setCurrentPage(1); // Reset to first page on new search
-      console.log('🔍 Searching with filters:', searchFilters);
       const response = await getBusinessListfilter( searchFilters, 1, pageSize );
       if ( response?.values?.rows ) {
         setBusinesses( response.values.rows );
@@ -374,7 +373,6 @@ const Page = () => {
         }
       }
     } catch ( error ) {
-      console.log( "Error", error )
       setSearchTerms( [] );
     } finally {
       setLoading( false );
@@ -395,7 +393,7 @@ const Page = () => {
         window.scrollTo({ top: 400, behavior: 'smooth' });
       }
     } catch (error) {
-      console.error('Pagination error:', error);
+      // Error logged by API interceptor
     } finally {
       setLoading(false);
     }
@@ -421,7 +419,6 @@ const Page = () => {
         router.replace( `?${params.toString()}`, { scroll: false, shallow: true } );
       }
     } catch ( err ) {
-      console.error( 'Error fetching businesses:', err );
       setError( 'Failed to load businesses' );
     } finally {
       setLoading( false );
@@ -446,7 +443,6 @@ const Page = () => {
           // router.replace(`?${params.toString()}`, { scroll: false, shallow: true });
         }
       } catch ( err ) {
-        console.error( 'Error fetching businesses:', err );
         setError( 'Failed to load businesses' );
       } finally {
         setLoading( false );
@@ -471,7 +467,6 @@ const Page = () => {
           }
         }
       } catch ( err ) {
-        console.error( 'Error fetching businesses:', err );
         setError( 'Failed to load businesses' );
         setSearchTerms( [] );
       } finally {
@@ -486,7 +481,6 @@ const Page = () => {
           setCategories( response.values.rows );
         }
       } catch ( err ) {
-        console.error( 'Error fetching categories:', err );
         setError( 'Failed to load categories' );
       } finally {
         setLoading( false );
@@ -515,7 +509,7 @@ const Page = () => {
             setSubCategories( response.values.rows );
           }
         } catch ( err ) {
-          console.error( 'Error fetching sub-categories:', err );
+          // Error logged by API interceptor
         }
       } else {
         setSubCategories( [] );

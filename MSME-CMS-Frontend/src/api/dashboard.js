@@ -1,18 +1,24 @@
 import instance from "../utils/axios";
 
 const getDashboardTotalStats = async (year = new Date().getFullYear()) => {
-  const response = await instance.get(`dashboard/data/${year}`);
+  const endpoint = year === 'All' ? 'dashboard' : `dashboard/data/${year}`;
+  const response = await instance.get(endpoint);
   return response.data;
 };
 
 const getMsmeTotalStats = async (year = new Date().getFullYear()) => {
-  const response = await instance.get(`dashboard/msme_total/${year}`);
+  const endpoint = year === 'All' ? 'dashboard/msme_totals' : `dashboard/msme_total/${year}`;
+  const response = await instance.get(endpoint);
   return response.data;
 };
 
 const getMsmeMonthlyRequests = async (year = new Date().getFullYear()) => {
   try {
-    const response = await instance.get(`/dashboard/msme_requests/${year}`);
+    // When 'All' is selected, default to 2025 (where most data exists)
+    // Otherwise use the specific year requested
+    const requestYear = year === 'All' ? 2025 : year;
+    const endpoint = `/dashboard/msme_requests/${requestYear}`;
+    const response = await instance.get(endpoint);
     return response.data;
   } catch (error) {
     console.error("Error fetching MSME monthly requests:", error);
@@ -22,7 +28,10 @@ const getMsmeMonthlyRequests = async (year = new Date().getFullYear()) => {
 
 const getMsmeTurnoverStats = async (year) => {
   try {
-    const response = await instance.get(`/dashboard/msme_according_to_turnover/${year}`);
+    const endpoint = year === 'All' 
+      ? '/dashboard/turnover'
+      : `/dashboard/msme_according_to_turnover/${year}`;
+    const response = await instance.get(endpoint);
     return response.data;
   } catch (error) {
     console.error("Error fetching MSME turnover data:", error);
@@ -32,7 +41,10 @@ const getMsmeTurnoverStats = async (year) => {
 
 const getMsmeRegionStats = async (year = new Date().getFullYear()) => {
   try {
-    const response = await instance.get(`/dashboard/msme_region_wise/${year}`);
+    const endpoint = year === 'All'
+      ? '/dashboard/region_wise'
+      : `/dashboard/msme_region_wise/${year}`;
+    const response = await instance.get(endpoint);
     return response.data;
   } catch (error) {
     console.error("Error fetching MSME region data:", error);
@@ -42,7 +54,10 @@ const getMsmeRegionStats = async (year = new Date().getFullYear()) => {
 
 const getMsmeDirectorsInfoByAge = async (year = new Date().getFullYear()) => {
   try {
-    const response = await instance.get(`/dashboard/msme_directors_info/${year}`);
+    const endpoint = year === 'All'
+      ? '/dashboard/directors_info'
+      : `/dashboard/msme_directors_info/${year}`;
+    const response = await instance.get(endpoint);
     return response.data;
   } catch (error) {
     console.error("Error fetching MSME Directors data:", error);

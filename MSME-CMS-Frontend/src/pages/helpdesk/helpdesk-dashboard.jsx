@@ -58,7 +58,7 @@ const HelpDeskDashboard = () => {
       setCategories(categoriesRes || []);
       setAdmins(adminsRes || []);
     } catch (err) {
-      console.error("Error fetching data", err);
+      // Error is already logged in API interceptor
     } finally {
       setLoading(false);
     }

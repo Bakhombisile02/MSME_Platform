@@ -8,6 +8,7 @@ const FeedbackReceived = () => {
   const [ totalPages, setTotalPages ] = useState( 1 );
   const [ selectedFeedback, setSelectedFeedback ] = useState( null );
   const [ totalData, setTotalData ] = useState( 0 );
+  const [ error, setError ] = useState( null );
   const limit = 10;
 
   const fetchfeedback = async ( page, limit ) => {
@@ -16,8 +17,10 @@ const FeedbackReceived = () => {
       setFeedbackData( data?.values?.rows || [] );
       setTotalData( data.total );
       setTotalPages( data?.total_pages || 1 );
+      setError( null );
     } catch ( err ) {
-      console.error( "Error fetching feedback", err );
+      setError( err.message || String(err) );
+      setFeedbackData( [] );
     }
   };
 
@@ -52,8 +55,6 @@ const FeedbackReceived = () => {
     const response = await getfeedbackList( 1, 200 );
     if ( response?.values?.rows ) {
       exportFeedbackReceivedToExcel( response.values.rows );
-    } else {
-      console.error( "No rows to export" );
     }
   };
 
@@ -76,6 +77,11 @@ const FeedbackReceived = () => {
           </div>
         </div>
       </div>
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md mb-6">
+          {error}
+        </div>
+      )}
       <div className="bg-white shadow-lg  text-primary-950 pb-5 overflow-x-auto text-sm ">
         <table className="min-w-full text-sm ">
           <thead className="bg-primary-950/5 py-5">

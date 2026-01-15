@@ -12,13 +12,8 @@ const DownloadForm = ({ defaultData = {}, onSubmit, onCancel, loading }) => {
     url: defaultData?.url || ''  
   });
 
-  const [fileName, setFileName] = useState('');
-
   useEffect(() => {
-    if (defaultData?.url) {
-      const extractedFileName = defaultData.url.split('/').pop();
-      setFileName(extractedFileName || 'No file chosen');
-    }
+    // Effect for syncing with default data
   }, [defaultData]);
 
   const handleChange = (e) => {

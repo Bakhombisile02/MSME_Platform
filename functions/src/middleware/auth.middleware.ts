@@ -14,11 +14,12 @@ import { COLLECTIONS, Admin, MSMEBusiness } from '../models/schemas';
 
 // JWT secret - required for production (must match the one in admin.routes.ts)
 // Consider using Firebase Secret Manager for production deployments
-if (!process.env.JWT_SECRET) {
-  console.error('FATAL: JWT_SECRET environment variable is required');
-  throw new Error('JWT_SECRET environment variable is required');
+function getJWTSecret(): string {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
+  return process.env.JWT_SECRET;
 }
-const JWT_SECRET = process.env.JWT_SECRET;
 
 // Extend Express Request type
 declare global {
@@ -63,7 +64,7 @@ async function verifyToken(req: Request): Promise<{ uid: string; email?: string;
   } catch (firebaseError) {
     // Firebase token failed, try JWT
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as { id: string; email: string; role: string };
+      const decoded = jwt.verify(token, getJWTSecret()) as { id: string; email: string; role: string };
       return {
         uid: decoded.id,
         email: decoded.email,
@@ -89,11 +90,10 @@ export async function authUser(req: Request, res: Response, next: NextFunction):
   }
   
   try {
-    // Get business associated with this user
+    // Get business associated with this user (don't filter by deletedAt to handle missing field)
     const businessSnapshot = await db
       .collection(COLLECTIONS.MSME_BUSINESSES)
       .where('userId', '==', tokenData.uid)
-      .where('deletedAt', '==', null)
       .limit(1)
       .get();
     
@@ -102,7 +102,15 @@ export async function authUser(req: Request, res: Response, next: NextFunction):
       return;
     }
     
-    const business = businessSnapshot.docs[0].data() as MSMEBusiness;
+    const businessDoc = businessSnapshot.docs[0];
+    const business = businessDoc.data() as MSMEBusiness;
+    
+    // Check if business is deleted (handle both missing and null deletedAt)
+    const deletedAt = businessDoc.get('deletedAt');
+    if (deletedAt !== null && deletedAt !== undefined) {
+      res.status(401).json({ error: 'Unauthorized: Business not found' });
+      return;
+    }
     
     req.user = {
       uid: tokenData.uid,

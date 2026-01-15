@@ -64,6 +64,7 @@ const DashboardHighlights = () => {
     setIsLoading(true);
     try {
       const apiYear = year === 'All' ? 'All' : Number(year);
+      
       const [totalStats, msmeStats, monthlyRequests, turnoverStats, regionStats, msmeDirectorsAge] = await Promise.all([
         getDashboardTotalStats(apiYear),
         getMsmeTotalStats(apiYear),
@@ -126,10 +127,14 @@ const DashboardHighlights = () => {
       ];
       const requestCounts = new Array(12).fill(0);
       
-      monthlyRequests.data.forEach(item => {
-        const index = item.month - 1;
-        requestCounts[index] = item.count;
-      });
+      if (monthlyRequests?.data && Array.isArray(monthlyRequests.data)) {
+        monthlyRequests.data.forEach(item => {
+          const index = item.month - 1;
+          if (index >= 0 && index < 12) {
+            requestCounts[index] = item.count || 0;
+          }
+        });
+      }
 
       setMonthlyRequestsData({
         labels: months,
@@ -214,6 +219,7 @@ const DashboardHighlights = () => {
 
     } catch (err) {
       console.error("Error loading dashboard data:", err);
+      console.error("Error details:", err.response?.data || err.message);
     } finally {
       setIsLoading(false);
     }

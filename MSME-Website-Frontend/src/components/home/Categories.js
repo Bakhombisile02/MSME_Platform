@@ -21,7 +21,6 @@ export default function Categories () {
           setCategories( response.values.rows );
         }
       } catch ( err ) {
-        console.error( 'Error fetching categories:', err );
         setError( 'Failed to load categories' );
       } finally {
         setLoading( false );

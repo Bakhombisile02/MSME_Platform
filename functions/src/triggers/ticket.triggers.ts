@@ -120,10 +120,49 @@ export const onTicketUpdated = functions.firestore.onDocumentUpdated(
       if (!beforeData.resolved_at && afterData.resolved_at) {
         console.log(`Ticket ${afterData.ticket_id} resolved`);
         
-        // Calculate resolution time
-        const createdAt = afterData.createdAt.toDate();
-        const resolvedAt = afterData.resolved_at.toDate();
-        const resolutionTimeHours = (resolvedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+        // Calculate resolution time - validate Timestamps before calling toDate()
+        let resolutionTimeHours: number | null = null;
+        
+        try {
+          // Convert Firestore Timestamp to Date
+          const convertToDate = (value: any): Date | null => {
+            if (!value) return null;
+            
+            // Check if it has toDate method (Firestore Timestamp)
+            if (typeof value.toDate === 'function') {
+              return value.toDate();
+            }
+            
+            // Check if it's a Firestore Timestamp-like object (has seconds/nanoseconds)
+            if (value.seconds !== undefined && value.nanoseconds !== undefined) {
+              return new Date(value.seconds * 1000 + value.nanoseconds / 1e6);
+            }
+            
+            // Check if already a Date
+            if (value instanceof Date) {
+              return value;
+            }
+            
+            // Last resort: try to parse as string/number
+            try {
+              const date = new Date(value);
+              return isNaN(date.getTime()) ? null : date;
+            } catch {
+              return null;
+            }
+          };
+          
+          const createdAt = convertToDate(afterData.createdAt);
+          const resolvedAt = convertToDate(afterData.resolved_at);
+          
+          if (createdAt && resolvedAt) {
+            const timeDiff = resolvedAt.getTime() - createdAt.getTime();
+            resolutionTimeHours = timeDiff > 0 ? timeDiff / (1000 * 60 * 60) : 0;
+          }
+        } catch (dateError) {
+          console.error('Error calculating resolution time:', dateError);
+          // Continue without resolution time
+        }
         
         // Store for analytics
         await db.collection(COLLECTIONS.ANALYTICS).add({

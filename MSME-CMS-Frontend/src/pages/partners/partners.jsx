@@ -17,7 +17,6 @@ const Partners = () => {
   const handleAddOrUpdateEntry = async (formData, id) => {
     const name = formData.name.trim();
     const wordCount = name.split(/\s+/).length;
-    console.log("first",formData)
     if (name.length < 3) {
       Swal.fire({
         icon: "warning",
@@ -65,7 +64,6 @@ const Partners = () => {
           showConfirmButton: false
         });
       } else {
-        console.log("create",payload)
         await createPartners(payload);
         Swal.fire({
           icon: 'success',
@@ -82,7 +80,6 @@ const Partners = () => {
       setShowForm(false);
       setEditItem(null);
     } catch (error) {
-      console.error('Failed to create/update Partners:', error);
       Swal.fire({
         icon: 'error',
         title: 'Error!',
@@ -123,7 +120,6 @@ const Partners = () => {
           await fetchData(1);
           setPage(1);
         } catch (err) {
-          console.error('Delete failed:', err);
           Swal.fire({
             icon: 'error',
             title: 'Error!',
@@ -160,7 +156,6 @@ const Partners = () => {
       setTotalPages(data?.total_pages || 1);
       setTotalData(data?.total)
     } catch (err) {
-      console.error('Error fetching  Partners', err);
       Swal.fire({
         icon: 'error',
         title: 'Error!',

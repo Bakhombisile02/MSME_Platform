@@ -16,18 +16,15 @@ const Banners = () => {
   const [loading, setLoading] = useState(false);
 
   const handleAddOrUpdateEntry = async (formData, id) => {
-    console.log(formData)
     setLoading(true);
     try {
 
       let imageUrl = formData.image_url||null;
-      console.log(formData.file instanceof File)
       if (formData.file instanceof File) {
         const uploadRes = await uploadBannerImageData(formData.file);
         imageUrl = uploadRes?.data?.url;
       }
 
-      console.log(formData)
       const payload = {
         name: formData.name,
         description: formData.description,
@@ -47,7 +44,6 @@ const Banners = () => {
       setShowForm(false);
       setEditingItem(null);
     } catch (error) {
-      console.error(error);
       Swal.fire('Error', 'Something went wrong.', 'error');
     } finally {
       setLoading(false);
@@ -82,7 +78,6 @@ const Banners = () => {
           await fetchData(1);
           setPage(1);
         } catch (err) {
-          console.error('Delete failed:', err);
           Swal.fire({
             icon: 'error',
             title: 'Error!',
@@ -119,7 +114,6 @@ const Banners = () => {
       setTotalPages(data?.total_pages || 1);
       setTotalData(data?.total)
     } catch (err) {
-      console.error('Error fetching  Banner', err);
       Swal.fire({
         icon: 'error',
         title: 'Error!',

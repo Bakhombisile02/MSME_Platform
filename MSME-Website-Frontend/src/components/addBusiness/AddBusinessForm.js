@@ -184,7 +184,6 @@ const AddBusinessForm = () => {
   const fetchCurrentBusinessDetailById = async () => {
     try {
       const response = await getBusinessDetailsById( userId );
-      console.log( "Current business details", response );
       if ( response?.msmeDetails ) {
         const { msmeDetails, directorsDetail, businessOwners } = response;
 
@@ -265,7 +264,6 @@ const AddBusinessForm = () => {
       }
       setIsUpdateMode( true );
     } catch ( err ) {
-      console.error( 'Error fetching business details:', err );
       toast.error( 'Failed to fetch business details. Please try again.' );
     }
   };
@@ -560,7 +558,6 @@ const AddBusinessForm = () => {
             'Registration documents/Incorporation Certificate'} uploaded successfully!` );
       }
     } catch ( error ) {
-      console.error( `Error uploading ${type}:`, error );
       toast.error( `Failed to upload ${type === 'businessProfile' ? 'business profile' :
         type === 'businessImage' ? 'business image' :
           'Registration documents/Incorporation Certificate'}. Please try again.` );
@@ -669,7 +666,6 @@ const AddBusinessForm = () => {
       }
       setIsPreviewOpen( false );
     } catch ( error ) {
-      console.error( 'Error submitting business:', error );
       toast.error( 'Failed to submit business. Please try again.' );
     }
   };

@@ -18,7 +18,11 @@ const TeamMemberForm = ({ onSubmit, onCancel, defaultData = {} ,loading}) => {
       if (file && file.type.startsWith('image/')) {
         setFormData(prev => ({ ...prev, [name]: file }));
       } else {
-        alert('Only image files are allowed!');
+        Swal.fire({
+          icon: 'warning',
+          title: 'Invalid File',
+          text: 'Only image files are allowed!'
+        });
       }
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));

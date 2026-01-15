@@ -6,7 +6,6 @@ import ServiceProviderTable from '../../components/service-provider/service-prov
 
 const exportServiceProviderByCategoryExcel = ( data ) => {
   if ( !Array.isArray( data ) ) {
-    console.error( 'Invalid or missing data structure' );
     return;
   }
   const rows = data.map( ( item, index ) => ( {
@@ -45,7 +44,6 @@ const ServiceProviderListByCategory = () => {
       } catch ( err ) {
         setCategoryList( [] );
         setTotalData( 0 );
-        console.error( 'Error fetching service provider by category', err );
       }
     };
     fetchData();
@@ -64,7 +62,6 @@ const ServiceProviderListByCategory = () => {
       setProviderList( res.values.rows || [] );
     } catch ( err ) {
       setProviderList( [] );
-      console.error( 'Error fetching providers for category', err );
     } finally {
       setProviderLoading( false );
     }

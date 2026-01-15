@@ -13,8 +13,6 @@ const BannerForm = ({ defaultData = {}, onSubmit, onCancel, loading }) => {
     image_url: defaultData?.image_url || ''  
   });
 
-  const [fileName, setFileName] = useState('No file chosen');
-
   function hasLongWords(text, maxLength) {
     if (!text) return false;
     
@@ -23,10 +21,7 @@ const BannerForm = ({ defaultData = {}, onSubmit, onCancel, loading }) => {
 }
 
   useEffect(() => {
-    if (defaultData?.image_url) {
-      const extractedFileName = defaultData.image_url.split('/').pop();
-      setFileName(extractedFileName || 'No file chosen');
-    }
+    // Effect for syncing with default data
   }, [defaultData]);
 
   const handleChange = (e) => {
@@ -36,7 +31,6 @@ const BannerForm = ({ defaultData = {}, onSubmit, onCancel, loading }) => {
       const file = files[0];
       if (file && file.type.startsWith('image/')) {
         setFormData(prev => ({ ...prev, file, image_url: '' }));
-        setFileName(file.name);
       } else {
         Swal.fire('Invalid File', 'Only image files (JPG, PNG, JPEG) are allowed.', 'warning');
       }
@@ -48,7 +42,7 @@ const BannerForm = ({ defaultData = {}, onSubmit, onCancel, loading }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    const { name, description, link, file, image_url } = formData;
+    const { name, description, file, image_url } = formData;
     const isEditMode = Boolean(defaultData && (defaultData.id || defaultData._id));
     const isFileMissing = !file && !image_url;
 

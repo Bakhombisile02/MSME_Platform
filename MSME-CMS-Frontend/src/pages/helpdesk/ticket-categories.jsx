@@ -37,7 +37,7 @@ const TicketCategories = () => {
       const data = await getTicketCategories();
       setCategories(data || []);
     } catch (err) {
-      console.error("Error fetching categories", err);
+      // Error is already logged in API interceptor
     } finally {
       setLoading(false);
     }

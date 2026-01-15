@@ -74,6 +74,11 @@ interface MigrationResult {
 function toTimestamp(date: Date | string | null): Timestamp | null {
   if (!date) return null;
   const d = typeof date === 'string' ? new Date(date) : date;
+  // Validate date before creating Timestamp
+  if (!Number.isFinite(d.getTime())) {
+    console.error('Invalid date encountered:', date);
+    return null;
+  }
   return Timestamp.fromDate(d);
 }
 
@@ -118,11 +123,10 @@ async function migrateAdmins(connection: mysql.Connection): Promise<MigrationRes
           });
           
           // Generate password reset link for admin to set their own password
+          let resetLink = null;
           try {
-            const resetLink = await auth.generatePasswordResetLink(admin.email);
+            resetLink = await auth.generatePasswordResetLink(admin.email);
             console.log(`Password reset link generated for admin ${admin.email}`);
-            // Store reset link info in admin document for batch email sending post-migration
-            // The link will be sent via the email service after migration completes
           } catch (resetError) {
             console.error(`Failed to generate reset link for ${admin.email}:`, resetError);
           }
@@ -145,6 +149,7 @@ async function migrateAdmins(connection: mysql.Connection): Promise<MigrationRes
           role: admin.role || 'admin',
           status: admin.status || 1,
           profile_picture: admin.profile_picture,
+          passwordResetLink: resetLink || null,
           createdAt: toTimestamp(admin.createdAt) || Timestamp.now(),
           updatedAt: toTimestamp(admin.updatedAt) || Timestamp.now(),
           deletedAt: toTimestamp(admin.deletedAt),
@@ -394,6 +399,7 @@ async function migrateMSMEBusinesses(connection: mysql.Connection): Promise<Migr
               email: dir.email,
               phone: dir.phone,
               gender: dir.gender,
+              age: dir.age,
               nationality: dir.nationality,
               position: dir.position,
               id_number: dir.id_number,

@@ -187,8 +187,6 @@ router.get('/list-according-to-business-id/:BusinessCategorieId', async (req: Re
   try {
     const { BusinessCategorieId } = req.params;
     
-    console.log('list-according-to-business-id: category_id=', BusinessCategorieId);
-    
     const result = await FirestoreRepo.list<BusinessSubCategory>(
       COLLECTIONS.BUSINESS_SUB_CATEGORIES,
       {
@@ -200,8 +198,6 @@ router.get('/list-according-to-business-id/:BusinessCategorieId', async (req: Re
       }
     );
     
-    console.log('list-according-to-business-id: got', result.rows.length, 'sub-categories');
-    
     // Match the old backend response format
     res.json({
       values: {
@@ -210,9 +206,8 @@ router.get('/list-according-to-business-id/:BusinessCategorieId', async (req: Re
       },
     });
   } catch (error: any) {
-    console.error('Error listing sub-categories by business category:', error.message || error);
-    console.error('Stack:', error.stack);
-    res.status(500).json({ error: 'Internal server error', message: error.message });
+    console.error('Error listing sub-categories by business category:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

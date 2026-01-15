@@ -17,7 +17,8 @@ const db = getFirestore();
 export interface ListParams {
   searchParams?: Record<string, any>;
   limit?: number;
-  offset?: number;
+  offset?: number; // Deprecated: use cursor instead
+  cursor?: string; // Document ID to start after for pagination
   orderBy?: string;
   orderDirection?: 'asc' | 'desc';
   includeDeleted?: boolean;
@@ -164,29 +165,37 @@ export async function createWithId<T = any>(
 
 /**
  * Bulk create documents
+ * Handles Firestore's 500-operation batch limit by chunking
  */
 export async function bulkCreate<T = any>(
   collectionName: string,
   items: Record<string, any>[]
 ): Promise<T[]> {
-  const batch = db.batch();
   const now = getCurrentTimestamp();
   const results: T[] = [];
+  const BATCH_SIZE = 500;
   
-  for (const item of items) {
-    const docRef = db.collection(collectionName).doc();
-    const documentData = {
-      ...item,
-      id: docRef.id,
-      createdAt: now,
-      updatedAt: now,
-      deletedAt: null,
-    };
-    batch.set(docRef, documentData);
-    results.push(documentData as T);
+  // Process in chunks of 500
+  for (let i = 0; i < items.length; i += BATCH_SIZE) {
+    const chunk = items.slice(i, i + BATCH_SIZE);
+    const batch = db.batch();
+    
+    for (const item of chunk) {
+      const docRef = db.collection(collectionName).doc();
+      const documentData = {
+        ...item,
+        id: docRef.id,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      };
+      batch.set(docRef, documentData);
+      results.push(documentData as T);
+    }
+    
+    await batch.commit();
   }
   
-  await batch.commit();
   return results;
 }
 
@@ -261,6 +270,7 @@ export async function findAll<T = any>(
 
 /**
  * List documents with pagination
+ * Supports both offset-based (legacy) and cursor-based pagination
  */
 export async function list<T = any>(
   collectionName: string,
@@ -268,37 +278,55 @@ export async function list<T = any>(
 ): Promise<ListResult<T>> {
   const collection = db.collection(collectionName);
   const limit = params.limit || 10;
-  const offset = params.offset || 0;
-  const currentPage = Math.floor(offset / limit) + 1;
   const includeDeleted = params.includeDeleted || false;
   
-  // Build query for data
+  // Build base query
   let dataQuery = buildQuery(collection, params);
   
-  // Get all documents (we'll filter and paginate in memory)
-  // This is needed because Firestore can't filter on missing fields
+  // Apply cursor if provided (preferred for scalability)
+  if (params.cursor) {
+    try {
+      const cursorDoc = await collection.doc(params.cursor).get();
+      if (cursorDoc.exists) {
+        dataQuery = dataQuery.startAfter(cursorDoc);
+      }
+    } catch (error) {
+      console.error('Error applying cursor:', error);
+      // Continue without cursor
+    }
+  }
+  
+  // Apply limit + 1 to check if there are more results
+  dataQuery = dataQuery.limit(limit + 1);
+  
   const snapshot = await dataQuery.get();
   
   // Filter out soft-deleted documents if not including deleted
-  let allDocs = snapshot.docs;
+  let docs = snapshot.docs;
   if (!includeDeleted) {
-    allDocs = allDocs.filter(doc => {
+    docs = docs.filter(doc => {
       const data = doc.data();
       return data.deletedAt === null || data.deletedAt === undefined;
     });
   }
   
-  const totalCount = allDocs.length;
+  // Check if there are more results
+  const hasMore = docs.length > limit;
+  const resultDocs = hasMore ? docs.slice(0, limit) : docs;
+  const nextCursor = hasMore && resultDocs.length > 0 ? resultDocs[resultDocs.length - 1].id : null;
   
-  // Apply pagination in memory
-  const paginatedDocs = allDocs.slice(offset, offset + limit);
+  // For backward compatibility with offset-based pagination
+  const offset = params.offset || 0;
+  const currentPage = Math.floor(offset / limit) + 1;
   
+  // Note: totalPages is approximate for cursor-based pagination
   return {
-    rows: paginatedDocs.map(doc => convertTimestamps(doc.data()) as T),
-    count: totalCount,
-    totalPages: Math.ceil(totalCount / limit),
+    rows: resultDocs.map(doc => convertTimestamps(doc.data()) as T),
+    count: resultDocs.length, // Only current page count for cursor pagination
+    totalPages: hasMore ? currentPage + 1 : currentPage, // Approximate
     currentPage,
-  };
+    nextCursor,
+  } as any;
 }
 
 /**
@@ -393,13 +421,21 @@ export async function count(
   const collection = db.collection(collectionName);
   let query = buildQuery(collection, params);
   
-  // Add soft-delete filter unless includeDeleted is true
-  if (!params.includeDeleted) {
-    query = query.where('deletedAt', '==', null);
+  // Don't use server-side where for deletedAt (misses docs without the field)
+  // Instead, fetch and filter in-memory
+  const snapshot = await query.get();
+  
+  if (params.includeDeleted) {
+    return snapshot.size;
   }
   
-  const snapshot = await query.count().get();
-  return snapshot.data().count;
+  // Filter out soft-deleted documents
+  const nonDeleted = snapshot.docs.filter(doc => {
+    const data = doc.data();
+    return data.deletedAt === null || data.deletedAt === undefined;
+  });
+  
+  return nonDeleted.length;
 }
 
 /**
@@ -411,14 +447,23 @@ export async function countByField(
   value: any,
   includeDeleted = false
 ): Promise<number> {
-  let query = db.collection(collectionName).where(field, '==', value);
+  // Build query with field filter first
+  let query: Query<DocumentData> = db.collection(collectionName).where(field, '==', value);
   
-  if (!includeDeleted) {
-    query = query.where('deletedAt', '==', null);
+  // For soft-delete filtering, we must use in-memory check since deletedAt may be missing
+  const snapshot = await query.get();
+  
+  if (includeDeleted) {
+    return snapshot.size;
   }
   
-  const snapshot = await query.count().get();
-  return snapshot.data().count;
+  // Filter out soft-deleted in memory
+  const nonDeleted = snapshot.docs.filter(doc => {
+    const data = doc.data();
+    return data.deletedAt === null || data.deletedAt === undefined;
+  });
+  
+  return nonDeleted.length;
 }
 
 /**

@@ -36,6 +36,40 @@ function removeUndefined(obj) {
   return cleaned;
 }
 
+/**
+ * Normalize is_verified value to an integer status code
+ * 
+ * Maps various input types to the correct verification status:
+ * - 2 (approved): boolean true, numeric 2, string '2'
+ * - 1 (pending): numeric 1, string '1'
+ * - 3 (rejected): numeric 3, string '3'
+ * - 1 (default): any other value defaults to pending
+ * 
+ * @param {*} value - The is_verified value from the source database (can be boolean, number, or string)
+ * @returns {number} Integer verification status: 1 (pending), 2 (approved), or 3 (rejected)
+ */
+function normalizeIsVerified(value) {
+  // Handle boolean true as approved
+  if (value === true) {
+    return 2;
+  }
+  
+  // Convert to string for consistent comparison
+  const stringValue = String(value);
+  
+  // Map string/numeric values
+  if (stringValue === '2') {
+    return 2; // approved
+  } else if (stringValue === '3') {
+    return 3; // rejected
+  } else if (stringValue === '1') {
+    return 1; // pending
+  }
+  
+  // Default to pending for any other value
+  return 1;
+}
+
 const transform = (row) => ({
   id: String(row.id),
   name_of_organization: row.name_of_organization || '',
@@ -65,7 +99,7 @@ const transform = (row) => ({
   incorporation_image_url: row.incorporation_image_url || '',
   // Do NOT migrate passwords - users must use Firebase Auth or reset password
   // password field intentionally omitted for security
-  is_verified: row.is_verified || '1',
+  is_verified: normalizeIsVerified(row.is_verified),
   is_verified_comments: row.is_verified_comments || '',
   // Invalidate all time-bound credentials - users must request new ones
   otp: null,
@@ -138,7 +172,9 @@ async function migrate() {
   
   await connection.end();
   console.log('📡 MySQL connection closed');
-  process.exit(0);
+  
+  // Exit with error code if any failures occurred
+  process.exit(totalFailed > 0 ? 1 : 0);
 }
 
 migrate().catch(err => {

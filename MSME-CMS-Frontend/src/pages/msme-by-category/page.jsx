@@ -15,12 +15,11 @@ const MsmeByCategory = () => {
   const fetchMsmeData = async () => {
     try {
       const data = await getMsmeListByCategory();
-      console.log( "MSME Data By Category", data.data );
       setMsmeData( data.data || [] );
       setTotalData( data.data.length );
       setTotalPages( data?.total_pages || 1 );
     } catch ( err ) {
-      console.error( "Error fetching MSME Data By Category", err );
+      // Error is already logged in API interceptor
     }
   };
 
@@ -28,10 +27,9 @@ const MsmeByCategory = () => {
     try {
       setLoading(true);
       const data = await getMsmeListByCategoryId( { msme_category_id } );
-      console.log( "MSMEs List By Category ID", data.values?.rows );
       setMsmeDataByCategoryId( data.values?.rows || [] );
     } catch ( err ) {
-      console.error( "Error fetching MSME Data By Category ID", err );
+      // Error is already logged in API interceptor
     } finally {
       setLoading(false);
     }
@@ -58,7 +56,6 @@ const MsmeByCategory = () => {
   const openModal = ( business_category_id, status ) => {
     setSelectedCategory( business_category_id );
     setSelectedStatus( status || null );
-    // console.log( "selected Status:", status )
   };
 
   const closeModal = () => {

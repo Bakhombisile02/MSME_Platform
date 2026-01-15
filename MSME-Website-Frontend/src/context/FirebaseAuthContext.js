@@ -27,7 +27,7 @@ export function AuthProvider({ children }) {
   const [business, setBusiness] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+  
   // Listen to auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -46,7 +46,12 @@ export function AuthProvider({ children }) {
             setBusiness(businessData);
           } else {
             // User exists in Auth but not in Firestore (edge case)
-            console.warn('User authenticated but no business profile found');
+            console.warn('User authenticated but no business profile found - signing out');
+            try {
+              await signOut(auth);
+            } catch (signOutError) {
+              console.error('Error signing out user without profile:', signOutError);
+            }
             setUser(null);
             setBusiness(null);
           }

@@ -1,17 +1,9 @@
 import instance from "../utils/axios";
 
-const getFirst150Words = (html) => {
-  const plainText = html?.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-  return plainText.split(' ').slice(0, 50).join(' ');
-};
-
-
 // Upload File for Banner Data image
 const uploadBannerImageData = async (file) => {
-    console.log("this is ",file)
   const formData = new FormData();
   formData.append("file", file);
-  console.log(formData)
   const response = await instance.post("/upload/home-banner-image", formData, {
     headers: {
       "Content-Type": "multipart/form-data", 

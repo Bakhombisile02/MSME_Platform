@@ -3,7 +3,7 @@ import React from 'react';
 // Base64 encoded small gray placeholder image to avoid network requests
 const placeholderImage = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0 0 50 50'%3E%3Crect width='50' height='50' fill='%23e6e9ee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='12px' fill='%23133b5e'%3ENo Image%3C/text%3E%3C/svg%3E";
 
-const TeamMemberTable = ({ data, onEdit, onDelete, totalData, page, totalPages, handleNextPage, handlePrevPage, loading }) => {
+const TeamMemberTable = ({ data, onEdit, onDelete, page, totalPages, handleNextPage, handlePrevPage, loading }) => {
   return (
     <>
       <div className="bg-[#e6e9ee] shadow-xl  overflow-hidden border border-primary-950/20">

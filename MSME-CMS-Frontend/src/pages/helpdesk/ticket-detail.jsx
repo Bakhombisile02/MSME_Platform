@@ -45,7 +45,6 @@ const TicketDetail = () => {
       setCategories(categoriesRes || []);
       setAdmins(adminsRes || []);
     } catch (err) {
-      console.error("Error fetching ticket", err);
       Swal.fire('Error', 'Failed to load ticket details', 'error');
     } finally {
       setLoading(false);

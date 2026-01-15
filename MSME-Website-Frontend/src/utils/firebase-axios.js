@@ -84,8 +84,8 @@ axiosInstance.interceptors.response.use(
           if (typeof window !== 'undefined') {
             window.location.href = '/login';
           }
+          return Promise.reject(refreshError || error);
         }
-        return Promise.reject(error);
       }
 
       // Handle 403 - forbidden

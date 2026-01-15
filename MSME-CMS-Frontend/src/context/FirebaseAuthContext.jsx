@@ -140,14 +140,12 @@ export function AuthProvider({ children }) {
       await sendPasswordResetEmail(auth, email);
       return true;
     } catch (err) {
-      let message = 'Failed to send reset email';
+      // Log actual error internally without revealing email existence
+      console.error('Password reset error:', err.code, err.message);
       
-      if (err.code === 'auth/user-not-found') {
-        message = 'No account found with this email';
-      }
-
-      setError(message);
-      throw new Error(message);
+      // Always return generic success message to prevent email enumeration
+      // Don't throw or set user-facing error for user-not-found
+      return true;
     }
   };
 

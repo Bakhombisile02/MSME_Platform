@@ -1,7 +1,6 @@
 const ContactSection = ( { businessDetails } ) => {
   const latitude = businessDetails?.lat || -26.3054;
   const longitude = businessDetails?.longe || 31.1367;
-  // console.log( 'Latitude:',businessDetails );
   const embedUrl = `https://maps.google.com/maps?q=${latitude},${longitude}&z=14&output=embed`;
   const mapUrl = `https://www.google.com/maps/embed/v1/view?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&center=${latitude},${longitude}&zoom=14&maptype=roadmap`;
   return (

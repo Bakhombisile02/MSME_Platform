@@ -18,7 +18,6 @@ const ServiceProvider = () => {
   const handleAddOrUpdateEntry = async (formData, id) => {
     const name = formData.name.trim();
     const wordCount = name.split(/\s+/).length;
-    console.log(formData)
     if (name.length < 3) {
       Swal.fire({
         icon: "warning",
@@ -61,7 +60,6 @@ const ServiceProvider = () => {
       };
 
       if (id) {
-        console.log("upload",payload)
         await updateServiceProvider(id, payload);
         Swal.fire({
           icon: 'success',
@@ -73,7 +71,6 @@ const ServiceProvider = () => {
           showConfirmButton: false
         });
       } else {
-        console.log("create",payload)
         await createServiceProvider(payload);
         Swal.fire({
           icon: 'success',
@@ -90,7 +87,6 @@ const ServiceProvider = () => {
       setShowForm(false);
       setEditItem(null);
     } catch (error) {
-      console.error('Failed to create/update Service Provider:', error);
       Swal.fire({
         icon: 'error',
         title: 'Error!',
@@ -131,7 +127,6 @@ const ServiceProvider = () => {
           await fetchData(1);
           setPage(1);
         } catch (err) {
-          console.error('Delete failed:', err);
           Swal.fire({
             icon: 'error',
             title: 'Error!',
@@ -168,7 +163,6 @@ const ServiceProvider = () => {
       setTotalPages(data?.total_pages || 1);
       setTotalData(data?.total)
     } catch (err) {
-      console.error('Error fetching Service Provider', err);
       Swal.fire({
         icon: 'error',
         title: 'Error!',
@@ -184,8 +178,6 @@ const ServiceProvider = () => {
     const response = await getServiceProvider(1, 200);
     if (response?.values?.rows) {
       exportServiceProviderToExcel(response.values.rows);
-    } else {
-      console.error("No rows to export");
     }
   };
 

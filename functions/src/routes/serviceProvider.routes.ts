@@ -285,14 +285,47 @@ router.put('/update/:id',
   handleValidationErrors,
   async (req: Request, res: Response) => {
     try {
+      // Get existing provider to check if category changed
+      const existing = await FirestoreRepo.findById<ServiceProvider>(
+        COLLECTIONS.SERVICE_PROVIDERS,
+        req.params.id
+      );
+      
+      if (!existing) {
+        return res.status(404).json({ error: 'Service provider not found' });
+      }
+      
       const updated = await FirestoreRepo.update<ServiceProvider>(
         COLLECTIONS.SERVICE_PROVIDERS,
         req.params.id,
         req.body
       );
       
-      if (!updated) {
-        return res.status(404).json({ error: 'Service provider not found' });
+      // Update category provider counts if category changed
+      const oldCategoryId = existing.category_id;
+      const newCategoryId = req.body.category_id;
+      
+      if (oldCategoryId && newCategoryId && oldCategoryId !== newCategoryId) {
+        const db = require('firebase-admin').firestore();
+        const batch = db.batch();
+        
+        // Decrement old category
+        if (oldCategoryId) {
+          const oldCategoryRef = db.collection(COLLECTIONS.SERVICE_PROVIDER_CATEGORIES).doc(oldCategoryId);
+          batch.update(oldCategoryRef, {
+            providerCount: require('firebase-admin').firestore.FieldValue.increment(-1),
+          });
+        }
+        
+        // Increment new category
+        if (newCategoryId) {
+          const newCategoryRef = db.collection(COLLECTIONS.SERVICE_PROVIDER_CATEGORIES).doc(newCategoryId);
+          batch.update(newCategoryRef, {
+            providerCount: require('firebase-admin').firestore.FieldValue.increment(1),
+          });
+        }
+        
+        await batch.commit();
       }
       
       res.json({

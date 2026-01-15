@@ -469,6 +469,9 @@ const transformers = {
  * Main migration function
  */
 async function migrate() {
+  let connection;
+  let exitCode = 0;
+  
   console.log('🚀 Starting MySQL to Firestore Migration\n');
   console.log('MySQL Config:', { ...mysqlConfig, password: '***' });
   

@@ -38,7 +38,6 @@ const MsmeBusiness = () => {
       setTotalPages(data?.total_pages || 1);
       setTotalData(data?.total);
     } catch (err) {
-      console.error('Error fetching MSME business', err);
       Swal.fire({
         icon: 'error',
         title: 'Error!',
@@ -56,7 +55,6 @@ const MsmeBusiness = () => {
       const response = await getMsmeBusinessData(exportStatus, 1, 500);
       exportMSMEBusinessReportExcel(response.values.rows);
     } catch (error) {
-      console.error('Error exporting data:', error);
       Swal.fire({
         icon: 'error',
         title: 'Export Error!',

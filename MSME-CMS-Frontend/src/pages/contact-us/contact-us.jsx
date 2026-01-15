@@ -16,7 +16,7 @@ const Contactus = () => {
       setTotalData(data.total);
       setTotalPages(data?.total_pages || 1);
     } catch (err) {
-      console.error("Error fetching feedback", err);
+      // Error is already logged in API interceptor
     }
   };
 

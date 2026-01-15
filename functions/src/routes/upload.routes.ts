@@ -382,7 +382,29 @@ router.delete('/file', authAdmin, async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'filePath is required' });
     }
     
-    const file = bucket.file(filePath);
+    // Validate and sanitize filePath to prevent path traversal
+    const path = require('path');
+    
+    // Reject paths with traversal patterns
+    if (filePath.includes('..') || filePath.startsWith('/') || filePath.includes('\\') || filePath.includes('\0')) {
+      return res.status(400).json({ error: 'Invalid file path' });
+    }
+    
+    // Normalize and ensure it starts with an allowed prefix
+    const normalized = path.normalize(filePath).replace(/^(\.[\/\\])+/, '');
+    const allowedPrefixes = ['uploads/', 'business/', 'business-profile/', 'incorporation-profile/', 'service-providers/', 'content/', 'business-categories/', 'partners-logo/', 'team-member/', 'home-banner/', 'blog-image/', 'service-provider-categories/', 'downloads/', 'temp/'];
+    
+    const isAllowed = allowedPrefixes.some(prefix => normalized.startsWith(prefix));
+    if (!isAllowed) {
+      return res.status(400).json({ error: 'File path not in allowed directory' });
+    }
+    
+    // Additional validation: only alphanumeric, hyphens, underscores, dots, and forward slashes
+    if (!/^[a-zA-Z0-9\/_.-]+$/.test(normalized)) {
+      return res.status(400).json({ error: 'Invalid characters in file path' });
+    }
+    
+    const file = bucket.file(normalized);
     await file.delete();
     
     res.json({ message: 'File deleted successfully' });

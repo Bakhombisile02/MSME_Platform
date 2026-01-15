@@ -16,7 +16,7 @@ export default function Footer () {
             setCategories( response.values.rows );
           }
         } catch ( err ) {
-          console.error( 'Error fetching categories:', err );
+          // Error logged by API interceptor
         } 
       };
   

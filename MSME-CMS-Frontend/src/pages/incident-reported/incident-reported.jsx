@@ -29,7 +29,6 @@ const IncidentReported = () => {
     try {
       setLoading(true);
       const response = await getReportedIncidentsList(page, limit);
-      console.log(response)
       // Handle the specific response structure
       if (response && response.values && response.values.rows) {
         setIncidents(response.values.rows || []);

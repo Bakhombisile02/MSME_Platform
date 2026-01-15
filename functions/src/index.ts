@@ -25,12 +25,17 @@ setGlobalOptions({
 
 // Import Express app
 import { app } from './api';
+import { defineSecret } from 'firebase-functions/params';
+
+// Define secrets
+const jwtSecret = defineSecret('JWT_SECRET');
 
 // Export main API as HTTP function with public access
 export const api = functions.https.onRequest(
   { 
     cors: true,
     invoker: 'public',  // Allow unauthenticated access
+    secrets: [jwtSecret],  // Make JWT_SECRET available to the function
   },
   app
 );

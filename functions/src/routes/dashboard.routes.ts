@@ -32,51 +32,62 @@ async function getDashboardData(req: Request, res: Response) {
   try {
     const year = req.params.year ? parseInt(req.params.year) : new Date().getFullYear();
     
-    // Get all businesses, filtering in memory for string/number is_verified
-    const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
-      COLLECTIONS.MSME_BUSINESSES,
-      { limit: 50000, offset: 0 }
-    );
+    // Try to use pre-computed analytics first
+    const analyticsSnapshot = await db
+      .collection('analytics_daily')
+      .where('date', '>=', `${year}-01-01`)
+      .where('date', '<', `${year + 1}-01-01`)
+      .orderBy('date', 'desc')
+      .limit(365)
+      .get();
     
-    // Filter by year if specified
-    let businesses = allBusinesses.rows;
-    if (year) {
-      const startDate = new Date(`${year}-01-01`);
-      const endDate = new Date(`${year + 1}-01-01`);
-      businesses = businesses.filter(b => {
-        const createdAt = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt as any);
-        return createdAt >= startDate && createdAt < endDate;
-      });
+    let totals;
+    
+    if (!analyticsSnapshot.empty) {
+      // Use analytics data if available
+      const analytics = analyticsSnapshot.docs.map(doc => doc.data());
+      const latestStats = analytics[0];
+      
+      totals = {
+        total: latestStats.total_businesses || 0,
+        pending: latestStats.pending_businesses || 0,
+        approved: latestStats.approved_businesses || 0,
+        rejected: latestStats.rejected_businesses || 0,
+      };
+    } else {
+      // Fallback: query businesses directly
+      console.log('Analytics not available, falling back to direct query');
+      const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
+        COLLECTIONS.MSME_BUSINESSES,
+        { limit: 10000, offset: 0 }
+      );
+      
+      // Filter by year if specified
+      let businesses = allBusinesses.rows;
+      if (year) {
+        const startDate = new Date(`${year}-01-01`);
+        const endDate = new Date(`${year + 1}-01-01`);
+        businesses = businesses.filter(b => {
+          const createdAt = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt as any);
+          return createdAt >= startDate && createdAt < endDate;
+        });
+      }
+      
+      totals = {
+        total: businesses.length,
+        pending: businesses.filter(b => isVerified(b.is_verified, 1)).length,
+        approved: businesses.filter(b => isVerified(b.is_verified, 2)).length,
+        rejected: businesses.filter(b => isVerified(b.is_verified, 3)).length,
+      };
     }
     
-    const totals = {
-      total: businesses.length,
-      pending: businesses.filter(b => isVerified(b.is_verified, 1)).length,
-      approved: businesses.filter(b => isVerified(b.is_verified, 2)).length,
-      rejected: businesses.filter(b => isVerified(b.is_verified, 3)).length,
-    };
-    
-    // Get additional stats
-    const [
-      totalServiceProviders,
-      totalSubscribers,
-      totalFeedback,
-    ] = await Promise.all([
-      FirestoreRepo.count(COLLECTIONS.SERVICE_PROVIDERS, {}),
-      FirestoreRepo.count(COLLECTIONS.SUBSCRIBERS, {}),
-      FirestoreRepo.count(COLLECTIONS.FEEDBACK, {}),
-    ]);
-    
     res.json({
+      message: 'Dashboard data fetched successfully',
       data: {
-        businesses: totals,
-        total: totals.total,
-        pending: totals.pending,
-        approved: totals.approved,
-        rejected: totals.rejected,
-        serviceProviders: totalServiceProviders,
-        subscribers: totalSubscribers,
-        feedback: totalFeedback,
+        totalMSME: totals.total,
+        totalMSMEApproved: totals.approved,
+        totalMSMERejected: totals.rejected,
+        totalMSMEPending: totals.pending,
       }
     });
   } catch (error) {
@@ -90,7 +101,7 @@ router.get('/data/:year', getDashboardData);
 
 /**
  * GET /api/dashboard/msme_total/:year or /api/dashboard/msme_totals
- * MSME totals by verification status
+ * MSME totals by verification status (Legacy backend compatible)
  */
 async function getMsmeTotals(req: Request, res: Response) {
   try {
@@ -99,7 +110,7 @@ async function getMsmeTotals(req: Request, res: Response) {
     // Get all businesses
     const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
       COLLECTIONS.MSME_BUSINESSES,
-      { limit: 50000, offset: 0 }
+      { limit: 10000, offset: 0 }
     );
     
     // Filter by year if specified
@@ -113,14 +124,31 @@ async function getMsmeTotals(req: Request, res: Response) {
       });
     }
     
-    const totals = {
-      total: businesses.length,
-      pending: businesses.filter(b => isVerified(b.is_verified, 1)).length,
-      approved: businesses.filter(b => isVerified(b.is_verified, 2)).length,
-      rejected: businesses.filter(b => isVerified(b.is_verified, 3)).length,
-    };
+    // Match legacy backend structure
+    const totalMSME = businesses.length;
+    const totalMSMEApproved = businesses.filter(b => isVerified(b.is_verified, 2)).length;
+    const totalMSMERejected = businesses.filter(b => isVerified(b.is_verified, 3)).length;
+    const totalMSMEPending = businesses.filter(b => isVerified(b.is_verified, 1)).length;
+    const totalOwnerFemale = businesses.filter(b => (b as any).ownerType === 'Female').length;
+    const totalOwnerMale = businesses.filter(b => (b as any).ownerType === 'Male').length;
+    const totalDisabilityOwned = businesses.filter(b => (b as any).disability_owned === 'Yes').length;
+    const totalMSMERagistered = businesses.filter(b => (b as any).business_type === 'Registered').length;
+    const totalMSMEUnragistered = businesses.filter(b => (b as any).business_type === 'Unregistered').length;
     
-    res.json({ data: totals });
+    res.json({
+      message: 'Dashboard MSME Total data fetched successfully',
+      data: {
+        totalMSME,
+        totalMSMEApproved,
+        totalMSMERejected,
+        totalMSMEPending,
+        totalOwnerFemale,
+        totalOwnerMale,
+        totalDisabilityOwned,
+        totalMSMERagistered,
+        totalMSMEUnragistered
+      }
+    });
   } catch (error) {
     console.error('Error getting MSME totals:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -132,7 +160,7 @@ router.get('/msme_total/:year', getMsmeTotals);
 
 /**
  * GET /api/dashboard/msme_directors_info/:year or /api/dashboard/directors_info
- * Gender breakdown of directors/owners
+ * Director counts by age and gender (Legacy backend compatible)
  */
 async function getDirectorsInfo(req: Request, res: Response) {
   try {
@@ -141,7 +169,7 @@ async function getDirectorsInfo(req: Request, res: Response) {
     // Get all approved businesses
     const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
       COLLECTIONS.MSME_BUSINESSES,
-      { limit: 50000, offset: 0 }
+      { limit: 10000, offset: 0 }
     );
     
     // Filter for approved businesses
@@ -157,25 +185,59 @@ async function getDirectorsInfo(req: Request, res: Response) {
       });
     }
     
-    // Aggregate owner gender from owner_gender_summary field
-    let maleCount = 0;
-    let femaleCount = 0;
+    // Aggregate directors by querying subcollections
+    let totalDirectors = 0;
+    let totalMaleDirectors = 0;
+    let totalFemaleDirectors = 0;
+    let totalOtherDirectors = 0;
+    let total18YearsOldDirectors = 0;
+    let total25YearsOldDirectors = 0;
+    let total40YearsOldDirectors = 0;
     
-    businesses.forEach(business => {
-      const summary = business.owner_gender_summary || '';
-      // Format: "2M,1F" means 2 males, 1 female
-      const maleMatch = summary.match(/(\d+)M/);
-      const femaleMatch = summary.match(/(\d+)F/);
-      
-      if (maleMatch) maleCount += parseInt(maleMatch[1]);
-      if (femaleMatch) femaleCount += parseInt(femaleMatch[1]);
+    const db = getFirestore();
+    
+    // Fetch all directors in parallel to avoid N+1 queries
+    const directorPromises = businesses.map(business => 
+      db
+        .collection(COLLECTIONS.MSME_BUSINESSES)
+        .doc(business.id)
+        .collection('directors')
+        .where('deletedAt', '==', null)
+        .get()
+    );
+    
+    const directorSnapshots = await Promise.all(directorPromises);
+    
+    // Process all directors
+    directorSnapshots.forEach(directorsSnapshot => {
+      directorsSnapshot.forEach(doc => {
+        const director = doc.data();
+        totalDirectors++;
+        
+        // Count by gender (handle both lowercase and capitalized)
+        const gender = (director.gender || '').toLowerCase();
+        if (gender === 'male') totalMaleDirectors++;
+        else if (gender === 'female') totalFemaleDirectors++;
+        else if (director.gender) totalOtherDirectors++;
+        
+        // Count by age (stored as string ranges in migration)
+        const age = (director as any).age;
+        if (age === '18-25') total18YearsOldDirectors++;
+        else if (age === '25-40') total25YearsOldDirectors++;
+        else if (age === '40+') total40YearsOldDirectors++;
+      });
     });
     
     res.json({
+      message: 'Dashboard MSME Directors data fetched successfully',
       data: {
-        male: maleCount,
-        female: femaleCount,
-        total: maleCount + femaleCount,
+        totalDirectors,
+        totalMaleDirectors,
+        totalFemaleDirectors,
+        totalOtherDirectors,
+        total18YearsOldDirectors,
+        total25YearsOldDirectors,
+        total40YearsOldDirectors,
       }
     });
   } catch (error) {
@@ -193,18 +255,19 @@ router.get('/msme_directors_info/:year', getDirectorsInfo);
  */
 async function getMonthlyRequests(req: Request, res: Response) {
   try {
-    const year = req.params.year ? parseInt(req.params.year) : new Date().getFullYear();
+    const yearParam = req.params.year;
+    const year = yearParam ? parseInt(yearParam) : new Date().getFullYear();
     
     // Get all businesses
     const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
       COLLECTIONS.MSME_BUSINESSES,
-      { limit: 50000, offset: 0 }
+      { limit: 10000, offset: 0 }
     );
     
+    // Filter by year (defaults to current year if not specified)
     const startDate = new Date(`${year}-01-01`);
     const endDate = new Date(`${year + 1}-01-01`);
     
-    // Filter by year
     const businesses = allBusinesses.rows.filter(b => {
       const createdAt = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt as any);
       return createdAt >= startDate && createdAt < endDate;
@@ -219,13 +282,12 @@ async function getMonthlyRequests(req: Request, res: Response) {
       monthlyData[month]++;
     });
     
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    
+    // Return array with month numbers (1-12) and counts
     res.json({
-      data: months.map((month, index) => ({
-        month,
-        count: monthlyData[index],
+      message: 'Dashboard Monthly Requests data fetched successfully',
+      data: monthlyData.map((count, index) => ({
+        month: index + 1,
+        count: count,
       }))
     });
   } catch (error) {
@@ -248,7 +310,7 @@ async function getTurnoverData(req: Request, res: Response) {
     // Get all businesses
     const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
       COLLECTIONS.MSME_BUSINESSES,
-      { limit: 50000, offset: 0 }
+      { limit: 10000, offset: 0 }
     );
     
     // Filter for approved businesses
@@ -264,19 +326,20 @@ async function getTurnoverData(req: Request, res: Response) {
       });
     }
     
-    const turnoverGroups: Record<string, number> = {};
-    
-    businesses.forEach(business => {
-      // Use turnover field from migrated data
-      const turnover = (business as any).turnover || business.annual_turnover || 'Not specified';
-      turnoverGroups[turnover] = (turnoverGroups[turnover] || 0) + 1;
-    });
+    // Count by turnover categories
+    const totalMSMEMicro = businesses.filter(b => (b as any).turnover === 'micro').length;
+    const totalMSMESmall = businesses.filter(b => (b as any).turnover === 'small').length;
+    const totalMSMEMedium = businesses.filter(b => (b as any).turnover === 'medium').length;
+    const totalMSME = businesses.length;
     
     res.json({
-      data: Object.entries(turnoverGroups).map(([range, count]) => ({
-        range,
-        count,
-      }))
+      message: 'Dashboard MSME Turnover data fetched successfully',
+      data: {
+        totalMSME,
+        totalMSMESmall,
+        totalMSMEMicro,
+        totalMSMEMedium
+      }
     });
   } catch (error) {
     console.error('Error getting turnover data:', error);
@@ -298,7 +361,7 @@ async function getRegionWiseData(req: Request, res: Response) {
     // Get all businesses
     const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
       COLLECTIONS.MSME_BUSINESSES,
-      { limit: 50000, offset: 0 }
+      { limit: 10000, offset: 0 }
     );
     
     // Filter for approved businesses
@@ -322,9 +385,10 @@ async function getRegionWiseData(req: Request, res: Response) {
     });
     
     res.json({
-      data: Object.entries(regionGroups).map(([region, count]) => ({
+      message: 'Region-wise business distribution fetched successfully',
+      data: Object.entries(regionGroups).map(([region, msme_count]) => ({
         region,
-        count,
+        msme_count,
       }))
     });
   } catch (error) {
@@ -350,7 +414,7 @@ router.get('/msme_list_according_to_category', async (req: Request, res: Respons
     // Get all businesses for counting
     const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
       COLLECTIONS.MSME_BUSINESSES,
-      { limit: 50000, offset: 0 }
+      { limit: 10000, offset: 0 }
     );
     
     const categoryData = categoriesSnapshot.docs.map((doc) => {
@@ -387,7 +451,7 @@ router.get('/service_provider_list_according_to_category', async (req: Request, 
     // Get all service providers for counting
     const allProviders = await FirestoreRepo.list<ServiceProvider>(
       COLLECTIONS.SERVICE_PROVIDERS,
-      { limit: 50000, offset: 0 }
+      { limit: 10000, offset: 0 }
     );
     
     const categoryData = categoriesSnapshot.docs.map((doc) => {
@@ -422,7 +486,7 @@ router.get('/analytics/gender-diversity', async (req: Request, res: Response) =>
   try {
     const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
       COLLECTIONS.MSME_BUSINESSES,
-      { limit: 50000, offset: 0 }
+      { limit: 10000, offset: 0 }
     );
     
     const businesses = allBusinesses.rows.filter(b => isVerified(b.is_verified, 2));
@@ -475,7 +539,7 @@ router.get('/analytics/growth-trends', async (req: Request, res: Response) => {
     // Get all businesses once
     const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
       COLLECTIONS.MSME_BUSINESSES,
-      { limit: 50000, offset: 0 }
+      { limit: 10000, offset: 0 }
     );
     
     const yearData = years.map(year => {
@@ -520,7 +584,7 @@ router.get('/analytics/business-age-analysis', async (req: Request, res: Respons
   try {
     const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
       COLLECTIONS.MSME_BUSINESSES,
-      { limit: 50000, offset: 0 }
+      { limit: 10000, offset: 0 }
     );
     
     const businesses = allBusinesses.rows.filter(b => isVerified(b.is_verified, 2));
@@ -563,7 +627,7 @@ router.get('/analytics/category-performance', async (req: Request, res: Response
   try {
     const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
       COLLECTIONS.MSME_BUSINESSES,
-      { limit: 50000, offset: 0 }
+      { limit: 10000, offset: 0 }
     );
     
     const categoryPerformance: Record<string, { total: number; approved: number }> = {};
@@ -604,7 +668,7 @@ router.get('/analytics/geographic-analysis', async (req: Request, res: Response)
   try {
     const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
       COLLECTIONS.MSME_BUSINESSES,
-      { limit: 50000, offset: 0 }
+      { limit: 10000, offset: 0 }
     );
     
     const businesses = allBusinesses.rows.filter(b => isVerified(b.is_verified, 2));
@@ -644,7 +708,7 @@ router.get('/analytics/employee-distribution', async (req: Request, res: Respons
   try {
     const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
       COLLECTIONS.MSME_BUSINESSES,
-      { limit: 50000, offset: 0 }
+      { limit: 10000, offset: 0 }
     );
     
     const businesses = allBusinesses.rows.filter(b => isVerified(b.is_verified, 2));
@@ -685,7 +749,7 @@ router.get('/analytics/approval-funnel/:year', async (req: Request, res: Respons
     
     const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
       COLLECTIONS.MSME_BUSINESSES,
-      { limit: 50000, offset: 0 }
+      { limit: 10000, offset: 0 }
     );
     
     const startDate = new Date(`${year}-01-01`);
@@ -719,7 +783,7 @@ router.get('/analytics/engagement-metrics/:year', async (req: Request, res: Resp
     
     const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
       COLLECTIONS.MSME_BUSINESSES,
-      { limit: 50000, offset: 0 }
+      { limit: 10000, offset: 0 }
     );
     
     const startDate = new Date(`${year}-01-01`);
@@ -755,7 +819,7 @@ router.get('/analytics/year-over-year', async (req: Request, res: Response) => {
     const currentYear = new Date().getFullYear();
     const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
       COLLECTIONS.MSME_BUSINESSES,
-      { limit: 50000, offset: 0 }
+      { limit: 10000, offset: 0 }
     );
     
     const yearlyData = [];
@@ -815,7 +879,7 @@ router.get('/analytics/time-comparison/:period', async (req: Request, res: Respo
     
     const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
       COLLECTIONS.MSME_BUSINESSES,
-      { limit: 50000, offset: 0 }
+      { limit: 10000, offset: 0 }
     );
     
     const currentPeriod = allBusinesses.rows.filter(b => {
@@ -853,7 +917,7 @@ router.get('/analytics/service-providers', async (req: Request, res: Response) =
   try {
     const allProviders = await FirestoreRepo.list<ServiceProvider>(
       COLLECTIONS.SERVICE_PROVIDERS,
-      { limit: 50000, offset: 0 }
+      { limit: 10000, offset: 0 }
     );
     
     const categoryData: Record<string, number> = {};

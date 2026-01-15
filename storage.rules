@@ -112,7 +112,7 @@ service firebase.storage {
       allow read: if true;
       allow write: if isAuthenticated() 
         && request.auth.uid == userId 
-        && isValidImage();
+        && (isValidDocument() || isValidImage());
     }
     
     // Incorporation documents

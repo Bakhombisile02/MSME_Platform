@@ -29,7 +29,7 @@ export default function Slider() {
           setSlides(formattedSlides);
         }
       } catch (error) {
-        console.error('Error fetching slides:', error);
+        // Error logged by API interceptor
       } finally {
         setLoading(false);
       }

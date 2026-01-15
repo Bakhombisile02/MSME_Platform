@@ -97,10 +97,11 @@ axiosInstance.interceptors.response.use(
             confirmButtonText: 'Login',
             confirmButtonColor: '#3085d6',
             allowOutsideClick: false,
-          }).then(() => {
-            auth.signOut();
+          }).then(async () => {
+            await auth.signOut();
             window.location.href = getLoginPath();
           });
+          return Promise.reject(refreshError || error);
         }
         return Promise.reject(error);
       }

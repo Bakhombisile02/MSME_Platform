@@ -197,7 +197,7 @@ router.get('/my-tickets', authUser, async (req: Request, res: Response) => {
  * GET /api/helpdesk/ticket/:id
  * Get ticket details with responses
  */
-router.get('/ticket/:id', validateIdParam('id'), handleValidationErrors,
+router.get('/ticket/:id', optionalAuth, validateIdParam('id'), handleValidationErrors,
   async (req: Request, res: Response) => {
     try {
       const ticket = await FirestoreRepo.findById<Ticket>(
@@ -207,6 +207,14 @@ router.get('/ticket/:id', validateIdParam('id'), handleValidationErrors,
       
       if (!ticket) {
         return res.status(404).json({ error: 'Ticket not found' });
+      }
+      
+      // Authorization: admin or ticket owner
+      const isAdmin = req.user?.role === 'admin';
+      const isOwner = ticket.email === req.user?.email || ticket.userId === req.user?.uid;
+      
+      if (!isAdmin && !isOwner) {
+        return res.status(403).json({ error: 'Forbidden: You do not have access to this ticket' });
       }
       
       // Get responses
@@ -302,7 +310,7 @@ router.post('/create', [
  * Update ticket status (admin only)
  */
 router.put('/ticket/:id/status', authAdmin, validateIdParam('id'), [
-  body('status').isIn(['open', 'in_progress', 'pending', 'resolved', 'closed']),
+  body('status').isIn(['open', 'in_progress', 'pending', 'resolved', 'closed', 'awaiting_response']),
 ], handleValidationErrors, async (req: Request, res: Response) => {
   try {
     const { status, resolution_notes } = req.body;
@@ -684,14 +692,12 @@ router.get('/detail/:id', authAdmin, validateIdParam('id'), handleValidationErro
         return res.status(404).json({ error: 'Ticket not found' });
       }
       
-      // Get responses for this ticket
-      const responses = await FirestoreRepo.list<TicketResponse>(
-        COLLECTIONS.TICKET_RESPONSES,
-        {
-          searchParams: { ticket_id: req.params.id },
-          orderBy: 'createdAt',
-          orderDirection: 'asc',
-        }
+      // Get responses from subcollection (consistent with POST /ticket/:id/response)
+      const responses = await FirestoreRepo.listFromSubcollection<TicketResponse>(
+        COLLECTIONS.TICKETS,
+        req.params.id,
+        'responses',
+        false
       );
       
       // Get category if exists
@@ -710,7 +716,7 @@ router.get('/detail/:id', authAdmin, validateIdParam('id'), handleValidationErro
       
       res.json({
         ...ticket,
-        responses: responses.rows,
+        responses: responses,
         category,
       });
     } catch (error) {

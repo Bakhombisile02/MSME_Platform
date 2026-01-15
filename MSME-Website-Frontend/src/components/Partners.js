@@ -17,7 +17,7 @@ export default function Partners() {
         // Duplicate the partners for continuous scrolling
         setPartners([...partnersData, ...partnersData]);
       } catch (error) {
-        console.error('Error fetching partners:', error);
+        // Error logged by API interceptor
       } finally {
         setLoading(false);
       }

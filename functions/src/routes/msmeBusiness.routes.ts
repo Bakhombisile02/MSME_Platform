@@ -259,16 +259,32 @@ router.post('/login',
           return res.status(401).json({ error: 'Invalid email or password' });
         }
       } else if (business.password) {
-        // Legacy plaintext password (from migration) - should be hashed
-        // Compare and update to hash if matches
-        if (password !== business.password) {
+        // Legacy plaintext password (from migration) - use constant-time comparison
+        const crypto = require('crypto');
+        const passwordBuffer = Buffer.from(password);
+        const storedBuffer = Buffer.from(business.password);
+        
+        // Ensure equal length for constant-time comparison
+        const maxLength = Math.max(passwordBuffer.length, storedBuffer.length);
+        const paddedPassword = Buffer.alloc(maxLength);
+        const paddedStored = Buffer.alloc(maxLength);
+        passwordBuffer.copy(paddedPassword);
+        storedBuffer.copy(paddedStored);
+        
+        try {
+          if (!crypto.timingSafeEqual(paddedPassword, paddedStored)) {
+            return res.status(401).json({ error: 'Invalid email or password' });
+          }
+        } catch {
           return res.status(401).json({ error: 'Invalid email or password' });
         }
-        // Upgrade to hashed password
+        
+        // Upgrade to hashed password and delete plaintext field
         const hashedPassword = await bcrypt.hash(password, 10);
+        const admin = require('firebase-admin');
         await FirestoreRepo.update(COLLECTIONS.MSME_BUSINESSES, business.id!, {
           password_hash: hashedPassword,
-          password: null, // Remove plaintext
+          password: admin.firestore.FieldValue.delete(), // Remove plaintext
         });
       }
       // If no password stored, this user uses Firebase Auth client-side
@@ -325,7 +341,7 @@ router.get('/check-email-exists/:email_address', async (req: Request, res: Respo
  * GET /api/msme-business/list
  * List all businesses (admin view)
  */
-router.get('/list', async (req: Request, res: Response) => {
+router.get('/list', authAdmin, async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -367,44 +383,37 @@ router.get('/list-web/:is_verified', async (req: Request, res: Response) => {
     const is_verified_param = parseInt(req.params.is_verified);
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
+    const offset = (page - 1) * limit;
     
-    // Get all businesses, then filter by is_verified in code
-    // because is_verified might be stored as string or number
+    // Use Firestore filtering instead of in-memory
+    // 0 = ALL (no filter), 1 = pending, 2 = approved, 3 = rejected
+    const listParams: any = {
+      limit,
+      offset,
+      orderBy: 'createdAt',
+      orderDirection: 'desc',
+    };
+    
+    // Add is_verified filter if not requesting all
+    if (is_verified_param !== 0) {
+      listParams.searchParams = { is_verified: is_verified_param };
+    }
+    
     const result = await FirestoreRepo.list<MSMEBusiness>(
       COLLECTIONS.MSME_BUSINESSES,
-      {
-        limit: 10000,
-        offset: 0,
-        orderBy: 'createdAt',
-        orderDirection: 'desc',
-      }
+      listParams
     );
-    
-    // Filter by is_verified (handles both string and number)
-    // 0 = ALL (no filter), 1 = pending, 2 = approved, 3 = rejected
-    const filtered = is_verified_param === 0 
-      ? result.rows  // Return all businesses when filter is 0
-      : result.rows.filter(b => 
-          b.is_verified === is_verified_param || 
-          b.is_verified === is_verified_param.toString() as any
-        );
-    
-    // Apply pagination
-    const offset = (page - 1) * limit;
-    const paginatedRows = filtered.slice(offset, offset + limit);
-    const totalCount = filtered.length;
-    const totalPages = Math.ceil(totalCount / limit);
     
     // Match the old backend response format
     res.json({
       values: {
-        rows: paginatedRows,
-        count: totalCount,
+        rows: result.rows,
+        count: result.count,
       },
-      page,
+      page: result.currentPage,
       limit,
-      total_pages: totalPages,
-      total: totalCount,
+      total_pages: result.totalPages,
+      total: result.count,
     });
   } catch (error) {
     console.error('Error listing businesses:', error);
@@ -418,26 +427,18 @@ router.get('/list-web/:is_verified', async (req: Request, res: Response) => {
  */
 router.get('/popular-searches', async (req: Request, res: Response) => {
   try {
-    console.log('popular-searches: Starting query');
-    
     // Get all approved businesses for aggregation
     // Note: is_verified may be stored as string "2" in some records
     const result = await FirestoreRepo.list<MSMEBusiness>(
       COLLECTIONS.MSME_BUSINESSES,
       {
-        limit: 10000, // Get all for aggregation
+        searchParams: { is_verified: 2 },
+        limit: 5000,
         offset: 0,
       }
     );
     
-    console.log('popular-searches: Got', result.rows.length, 'total businesses');
-    
-    // Filter for approved businesses (is_verified = 2 or "2")
-    const businesses = result.rows.filter(b => 
-      b.is_verified === 2 || b.is_verified === '2' as any
-    );
-    
-    console.log('popular-searches: Filtered to', businesses.length, 'approved businesses');
+    const businesses = result.rows;
     
     // Aggregate by category
     const categoryCount = new Map<string, { id: string; name: string; count: number }>();

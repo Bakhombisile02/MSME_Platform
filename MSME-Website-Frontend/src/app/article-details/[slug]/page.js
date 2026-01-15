@@ -22,7 +22,6 @@ const Page = () => {
       try {
         setLoading(true);
         const response = await getArticleList(1, 6);
-        console.log(response.values.rows)
         if (response.values.rows) {
         const newArticles = response.values.rows.map(article => ({
           id: article.id,
@@ -33,7 +32,6 @@ const Page = () => {
            date: `${new Date(article.createdAt).getDate()} ${new Date(article.createdAt).toLocaleString('default', { month: 'short' ,    year: 'numeric'})}`,          author: "ADMIN"  
         }));
         setLatestData(newArticles)
-        console.log('newArticles',newArticles)
         }
       } catch (err) {
         console.error('Error fetching Article:', err);

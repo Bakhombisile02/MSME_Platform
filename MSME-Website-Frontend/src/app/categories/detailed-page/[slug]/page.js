@@ -16,7 +16,6 @@ import { useAuth } from "@/context/AuthContext";
 const Page = () => {
   const { slug } = useParams();
   const { userType } = useAuth();
-  console.log("slug", slug);
   const [ activeTab, setActiveTab ] = useState( "about" );
   const [ isLoading, setIsLoading ] = useState(false);
   const [ businessDetails, setBusinessDetails ] = useState({
@@ -53,7 +52,6 @@ const Page = () => {
     try {
       setIsLoading(true);
       const response = await getBusinessDetailsById( slug );
-      console.log("Current business details", response);
       if ( response?.msmeDetails ) {
         const { msmeDetails, directorsDetail } = response;
         

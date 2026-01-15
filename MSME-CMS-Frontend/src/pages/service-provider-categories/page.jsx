@@ -55,7 +55,6 @@ const ServiceCategory = () => {
       };
 
       if (id) {
-        console.log("upload",payload)
         await updateServiceCategory(id, payload);
         Swal.fire({
           icon: 'success',
@@ -67,7 +66,6 @@ const ServiceCategory = () => {
           showConfirmButton: false
         });
       } else {
-        console.log("create",payload)
         await createServiceCategory(payload);
         Swal.fire({
           icon: 'success',
@@ -84,7 +82,6 @@ const ServiceCategory = () => {
       setShowForm(false);
       setEditItem(null);
     } catch (error) {
-      console.error('Failed to create/update Service Category:', error);
       Swal.fire({
         icon: 'error',
         title: 'Error!',
@@ -125,7 +122,6 @@ const ServiceCategory = () => {
           await fetchData(1);
           setPage(1);
         } catch (err) {
-          console.error('Delete failed:', err);
           Swal.fire({
             icon: 'error',
             title: 'Error!',
@@ -162,7 +158,6 @@ const ServiceCategory = () => {
       setTotalPages(data?.total_pages || 1);
       setTotalData(data?.total)
     } catch (err) {
-      console.error('Error fetching Service Category', err);
       Swal.fire({
         icon: 'error',
         title: 'Error!',

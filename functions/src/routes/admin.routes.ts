@@ -20,11 +20,12 @@ const auth = getAuth();
 
 // JWT secret from environment - required for production
 // Consider using Firebase Secret Manager for production deployments
-if (!process.env.JWT_SECRET) {
-  console.error('FATAL: JWT_SECRET environment variable is required');
-  throw new Error('JWT_SECRET environment variable is required');
+function getJWTSecret(): string {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
+  return process.env.JWT_SECRET;
 }
-const JWT_SECRET = process.env.JWT_SECRET;
 
 /**
  * POST /api/admin/login
@@ -61,7 +62,7 @@ router.post('/login',
           email: admin.email, 
           role: admin.role || 'admin' 
         },
-        JWT_SECRET,
+        getJWTSecret(),
         { expiresIn: '7d' }
       );
       
@@ -106,6 +107,12 @@ router.post('/register',
         return res.status(400).json({ error: 'Email already registered' });
       }
       
+      // Validate role before creating Firebase user
+      const allowedRoles = ['admin', 'user'];
+      if (!allowedRoles.includes(role)) {
+        return res.status(400).json({ error: 'Invalid role. Must be admin or user' });
+      }
+      
       // Create Firebase Auth user
       userRecord = await auth.createUser({
         email,
@@ -113,8 +120,11 @@ router.post('/register',
         displayName: name,
       });
       
-      // Set admin custom claim using the role from request
-      await auth.setCustomUserClaims(userRecord.uid, { role });
+      // Set custom claims - include admin boolean for frontend compatibility
+      await auth.setCustomUserClaims(userRecord.uid, { 
+        role,
+        admin: role === 'admin'
+      });
       
       // Hash password for Firestore
       const hashedPassword = await bcrypt.hash(password, 10);

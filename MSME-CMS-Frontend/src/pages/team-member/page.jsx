@@ -17,7 +17,6 @@ const TeamMembers = () => {
   const handleAddOrUpdateEntry = async (formData, id) => {
     const name = formData.name.trim();
     const wordCount = name.split(/\s+/).length;
-    console.log("first",formData)
     if (name.length < 3) {
       Swal.fire({
         icon: "warning",
@@ -35,7 +34,6 @@ const TeamMembers = () => {
       });
       return;
     }
-    console.log(formData)
     try {
     setLoading(true);
       let imageUrl = null;
@@ -49,7 +47,6 @@ const TeamMembers = () => {
         icon_url: imageUrl || (editItem?.url ?? ''),
         position:formData.position,
       };
-      console.log("s",payload)
       if (id) {
         await updateteamMember(id, payload);
         Swal.fire({
@@ -62,7 +59,6 @@ const TeamMembers = () => {
           showConfirmButton: false
         });
       } else {
-        console.log("create",payload)
         await createteamMember(payload);
         Swal.fire({
           icon: 'success',
@@ -79,7 +75,6 @@ const TeamMembers = () => {
       setShowForm(false);
       setEditItem(null);
     } catch (error) {
-      console.error('Failed to create/update Team Member:', error);
       Swal.fire({
         icon: 'error',
         title: 'Error!',
@@ -120,7 +115,6 @@ const TeamMembers = () => {
           await fetchData(1);
           setPage(1);
         } catch (err) {
-          console.error('Delete failed:', err);
           Swal.fire({
             icon: 'error',
             title: 'Error!',
@@ -157,7 +151,6 @@ const TeamMembers = () => {
       setTotalPages(data?.total_pages || 1);
       setTotalData(data?.total)
     } catch (err) {
-      console.error('Error fetching Team Member', err);
       Swal.fire({
         icon: 'error',
         title: 'Error!',

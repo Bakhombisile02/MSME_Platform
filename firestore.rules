@@ -17,7 +17,8 @@ service cloud.firestore {
     }
     
     function notDeleted() {
-      return resource.data.deletedAt == null;
+      // Handle both missing deletedAt field and null value
+      return !resource.data.keys().hasAny(['deletedAt']) || resource.data.deletedAt == null;
     }
     
     // ==========================================================================
@@ -128,7 +129,12 @@ service cloud.firestore {
     // ==========================================================================
     match /subscribers/{subscriberId} {
       allow read: if isAdmin();
-      allow create: if true; // Public can subscribe
+      // Require validation: email format, server timestamp, size limits
+      allow create: if request.resource.data.keys().hasAll(['email', 'createdAt'])
+        && request.resource.data.email is string
+        && request.resource.data.email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$')
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.email.size() <= 255;
       allow update, delete: if isAdmin();
     }
     
