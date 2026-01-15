@@ -13,7 +13,7 @@
     "axios": "^1.9.0",
     "dompurify": "^3.3.1",
     "firebase": "^12.7.0",
-    "framer-motion": "^12.11.3",
+    "framer-motion": "^12.26.2",
     "next": "^15.5.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
