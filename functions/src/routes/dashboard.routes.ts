@@ -30,49 +30,63 @@ function isVerified(value: any, target: number): boolean {
  */
 async function getDashboardData(req: Request, res: Response) {
   try {
-    const year = req.params.year ? parseInt(req.params.year) : new Date().getFullYear();
-    
-    // Try to use pre-computed analytics first
-    const analyticsSnapshot = await db
-      .collection('analytics_daily')
-      .where('date', '>=', `${year}-01-01`)
-      .where('date', '<', `${year + 1}-01-01`)
-      .orderBy('date', 'desc')
-      .limit(365)
-      .get();
+    const yearParam = req.params.year;
+    const year = yearParam ? parseInt(yearParam) : null;
     
     let totals;
     
-    if (!analyticsSnapshot.empty) {
-      // Use analytics data if available
-      const analytics = analyticsSnapshot.docs.map(doc => doc.data());
-      const latestStats = analytics[0];
+    if (year) {
+      // Try to use pre-computed analytics for specific year
+      const analyticsSnapshot = await db
+        .collection('analytics_daily')
+        .where('date', '>=', `${year}-01-01`)
+        .where('date', '<', `${year + 1}-01-01`)
+        .orderBy('date', 'desc')
+        .limit(365)
+        .get();
       
-      totals = {
-        total: latestStats.total_businesses || 0,
-        pending: latestStats.pending_businesses || 0,
-        approved: latestStats.approved_businesses || 0,
-        rejected: latestStats.rejected_businesses || 0,
-      };
+      if (!analyticsSnapshot.empty) {
+        // Use analytics data if available
+        const analytics = analyticsSnapshot.docs.map(doc => doc.data());
+        const latestStats = analytics[0];
+        
+        totals = {
+          total: latestStats.total_businesses || 0,
+          pending: latestStats.pending_businesses || 0,
+          approved: latestStats.approved_businesses || 0,
+          rejected: latestStats.rejected_businesses || 0,
+        };
+      } else {
+        // Fallback: query businesses directly for specific year
+        console.log('Analytics not available, falling back to direct query for year', year);
+        const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
+          COLLECTIONS.MSME_BUSINESSES,
+          { limit: 10000, offset: 0 }
+        );
+        
+        const startDate = new Date(`${year}-01-01`);
+        const endDate = new Date(`${year + 1}-01-01`);
+        const businesses = allBusinesses.rows.filter(b => {
+          const createdAt = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt as any);
+          return createdAt >= startDate && createdAt < endDate;
+        });
+        
+        totals = {
+          total: businesses.length,
+          pending: businesses.filter(b => isVerified(b.is_verified, 1)).length,
+          approved: businesses.filter(b => isVerified(b.is_verified, 2)).length,
+          rejected: businesses.filter(b => isVerified(b.is_verified, 3)).length,
+        };
+      }
     } else {
-      // Fallback: query businesses directly
-      console.log('Analytics not available, falling back to direct query');
+      // No year specified - return all-time totals
+      console.log('No year specified, returning all-time totals');
       const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
         COLLECTIONS.MSME_BUSINESSES,
         { limit: 10000, offset: 0 }
       );
       
-      // Filter by year if specified
-      let businesses = allBusinesses.rows;
-      if (year) {
-        const startDate = new Date(`${year}-01-01`);
-        const endDate = new Date(`${year + 1}-01-01`);
-        businesses = businesses.filter(b => {
-          const createdAt = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt as any);
-          return createdAt >= startDate && createdAt < endDate;
-        });
-      }
-      
+      const businesses = allBusinesses.rows;
       totals = {
         total: businesses.length,
         pending: businesses.filter(b => isVerified(b.is_verified, 1)).length,
@@ -105,7 +119,8 @@ router.get('/data/:year', getDashboardData);
  */
 async function getMsmeTotals(req: Request, res: Response) {
   try {
-    const year = req.params.year ? parseInt(req.params.year) : null;
+    const yearParam = req.params.year;
+    const year = yearParam ? parseInt(yearParam) : null;
     
     // Get all businesses
     const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
@@ -113,7 +128,7 @@ async function getMsmeTotals(req: Request, res: Response) {
       { limit: 10000, offset: 0 }
     );
     
-    // Filter by year if specified
+    // Filter by year only if year is specified
     let businesses = allBusinesses.rows;
     if (year) {
       const startDate = new Date(`${year}-01-01`);
@@ -123,17 +138,45 @@ async function getMsmeTotals(req: Request, res: Response) {
         return createdAt >= startDate && createdAt < endDate;
       });
     }
+    // If no year specified, use all businesses (for "All" filter)
     
     // Match legacy backend structure
     const totalMSME = businesses.length;
     const totalMSMEApproved = businesses.filter(b => isVerified(b.is_verified, 2)).length;
     const totalMSMERejected = businesses.filter(b => isVerified(b.is_verified, 3)).length;
     const totalMSMEPending = businesses.filter(b => isVerified(b.is_verified, 1)).length;
-    const totalOwnerFemale = businesses.filter(b => (b as any).ownerType === 'Female').length;
-    const totalOwnerMale = businesses.filter(b => (b as any).ownerType === 'Male').length;
+    
+    // Count gender ownership - support both legacy (ownerType) and new (owner_gender_summary) fields
+    let totalOwnerFemale = 0;
+    let totalOwnerMale = 0;
+    businesses.forEach(b => {
+      const legacyOwner = (b as any).ownerType;
+      const summary = b.owner_gender_summary || '';
+      
+      // Check legacy field first for backward compatibility
+      if (legacyOwner === 'Female') {
+        totalOwnerFemale++;
+      } else if (legacyOwner === 'Male') {
+        totalOwnerMale++;
+      }
+      // Otherwise check new owner_gender_summary field
+      else if (summary.includes('F') && !summary.includes('M')) {
+        totalOwnerFemale++; // Female only
+      } else if (summary.includes('M') && !summary.includes('F')) {
+        totalOwnerMale++; // Male only
+      }
+    });
+    
+    // PWD support - check legacy disability_owned field
     const totalDisabilityOwned = businesses.filter(b => (b as any).disability_owned === 'Yes').length;
-    const totalMSMERagistered = businesses.filter(b => (b as any).business_type === 'Registered').length;
-    const totalMSMEUnragistered = businesses.filter(b => (b as any).business_type === 'Unregistered').length;
+    
+    // Registered/Unregistered - check both legacy business_type and new registration_number
+    const totalMSMERagistered = businesses.filter(b => 
+      (b as any).business_type === 'Registered' || (b as any).registration_number
+    ).length;
+    const totalMSMEUnragistered = businesses.filter(b => 
+      (b as any).business_type === 'Unregistered' || (!(b as any).registration_number && (b as any).business_type !== 'Registered')
+    ).length;
     
     res.json({
       message: 'Dashboard MSME Total data fetched successfully',
@@ -512,12 +555,16 @@ router.get('/analytics/gender-diversity', async (req: Request, res: Response) =>
       }
     });
     
+    const ownership = [
+      { ownerType: 'Male Owned', count: maleOwned },
+      { ownerType: 'Female Owned', count: femaleOwned },
+      { ownerType: 'Mixed Ownership', count: mixedOwnership },
+      { ownerType: 'Unknown', count: unknown },
+    ].filter(item => item.count > 0); // Only include non-zero counts
+    
     res.json({
       data: {
-        maleOwned,
-        femaleOwned,
-        mixedOwnership,
-        unknown,
+        ownership,
         total: maleOwned + femaleOwned + mixedOwnership + unknown,
       }
     });
@@ -529,12 +576,13 @@ router.get('/analytics/gender-diversity', async (req: Request, res: Response) =>
 
 /**
  * GET /api/dashboard/analytics/growth-trends
- * Year-over-year growth
+ * Monthly registration growth trends over the last 12 months
  */
 router.get('/analytics/growth-trends', async (req: Request, res: Response) => {
   try {
-    const currentYear = new Date().getFullYear();
-    const years = [currentYear - 2, currentYear - 1, currentYear];
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
     
     // Get all businesses once
     const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
@@ -542,31 +590,40 @@ router.get('/analytics/growth-trends', async (req: Request, res: Response) => {
       { limit: 10000, offset: 0 }
     );
     
-    const yearData = years.map(year => {
-      const startDate = new Date(`${year}-01-01`);
-      const endDate = new Date(`${year + 1}-01-01`);
+    // Build last 12 months of data
+    const monthlyData: Array<{month: number, year: number, count: number, approved: number}> = [];
+    
+    for (let i = 11; i >= 0; i--) {
+      const targetDate = new Date(currentYear, currentMonth - i, 1);
+      const month = targetDate.getMonth() + 1; // 1-based
+      const year = targetDate.getFullYear();
       
-      const count = allBusinesses.rows.filter(b => {
+      const startDate = new Date(year, month - 1, 1);
+      const endDate = new Date(year, month, 0, 23, 59, 59);
+      
+      const monthBusinesses = allBusinesses.rows.filter(b => {
         const createdAt = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt as any);
-        return createdAt >= startDate && createdAt < endDate;
-      }).length;
+        return createdAt >= startDate && createdAt <= endDate;
+      });
       
-      return {
+      monthlyData.push({
+        month,
         year,
-        registrations: count,
-      };
-    });
+        count: monthBusinesses.length,
+        approved: monthBusinesses.filter(b => isVerified(b.is_verified, 2)).length,
+      });
+    }
     
     // Calculate growth rates
-    const result = yearData.map((data, index) => {
-      let growth = 0;
-      if (index > 0 && yearData[index - 1].registrations > 0) {
-        growth = ((data.registrations - yearData[index - 1].registrations) / 
-                  yearData[index - 1].registrations) * 100;
+    const result = monthlyData.map((data, index) => {
+      let growth_rate = 0;
+      if (index > 0 && monthlyData[index - 1].count > 0) {
+        growth_rate = ((data.count - monthlyData[index - 1].count) / 
+                  monthlyData[index - 1].count) * 100;
       }
       return {
         ...data,
-        growthRate: Math.round(growth * 10) / 10,
+        growth_rate: Math.round(growth_rate * 10) / 10,
       };
     });
     
@@ -599,8 +656,13 @@ router.get('/analytics/business-age-analysis', async (req: Request, res: Respons
     };
     
     businesses.forEach(business => {
-      const estYear = parseInt((business as any).establishment_year || '0');
-      if (!estYear) return;
+      // Support both legacy establishment_year and new year_established fields
+      const estYear = parseInt(
+        (business as any).year_established || 
+        (business as any).establishment_year || 
+        '0'
+      );
+      if (!estYear || estYear === 0) return;
       
       const age = currentYear - estYear;
       
@@ -612,7 +674,7 @@ router.get('/analytics/business-age-analysis', async (req: Request, res: Respons
     });
     
     res.json({
-      data: Object.entries(ageGroups).map(([range, count]) => ({ range, count }))
+      data: Object.entries(ageGroups).map(([age_group, count]) => ({ age_group, count }))
     });
   } catch (error) {
     console.error('Error getting business age analysis:', error);
@@ -648,12 +710,13 @@ router.get('/analytics/category-performance', async (req: Request, res: Response
     res.json({
       data: Object.entries(categoryPerformance)
         .map(([category, stats]) => ({
-          category,
-          total: stats.total,
-          approved: stats.approved,
+          business_category_name: category,
+          total_count: stats.total,
+          approved_count: stats.approved,
+          female_owned: 0, // TODO: Track female ownership by category
           approvalRate: stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0,
         }))
-        .sort((a, b) => b.total - a.total)
+        .sort((a, b) => b.total_count - a.total_count)
     });
   } catch (error) {
     console.error('Error getting category performance:', error);
@@ -673,28 +736,31 @@ router.get('/analytics/geographic-analysis', async (req: Request, res: Response)
     
     const businesses = allBusinesses.rows.filter(b => isVerified(b.is_verified, 2));
     
-    const regionData: Record<string, number> = {};
-    const townData: Record<string, number> = {};
+    // Group by region and rural/urban classification
+    const geoData: Array<{region: string, rural_urban_classification: string, count: number}> = [];
+    const grouping: Record<string, Record<string, number>> = {};
     
     businesses.forEach(business => {
       const region = business.region || 'Unknown';
-      const town = (business as any).town || 'Unknown';
+      const classification = (business as any).rural_urban_classification || 'Unknown';
       
-      regionData[region] = (regionData[region] || 0) + 1;
-      townData[town] = (townData[town] || 0) + 1;
+      if (!grouping[region]) {
+        grouping[region] = {};
+      }
+      if (!grouping[region][classification]) {
+        grouping[region][classification] = 0;
+      }
+      grouping[region][classification]++;
     });
     
-    res.json({
-      data: {
-        regions: Object.entries(regionData)
-          .map(([name, count]) => ({ name, count }))
-          .sort((a, b) => b.count - a.count),
-        towns: Object.entries(townData)
-          .map(([name, count]) => ({ name, count }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 20), // Top 20 towns
-      }
+    // Convert to array format
+    Object.entries(grouping).forEach(([region, classifications]) => {
+      Object.entries(classifications).forEach(([classification, count]) => {
+        geoData.push({ region, rural_urban_classification: classification, count });
+      });
     });
+    
+    res.json({ data: geoData });
   } catch (error) {
     console.error('Error getting geographic analysis:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -745,29 +811,78 @@ router.get('/analytics/employee-distribution', async (req: Request, res: Respons
  */
 router.get('/analytics/approval-funnel/:year', async (req: Request, res: Response) => {
   try {
-    const year = parseInt(req.params.year) || new Date().getFullYear();
+    const yearParam = req.params.year;
+    const useAllYears = yearParam === 'All';
+    const year = useAllYears ? new Date().getFullYear() : parseInt(yearParam);
     
     const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
       COLLECTIONS.MSME_BUSINESSES,
       { limit: 10000, offset: 0 }
     );
     
-    const startDate = new Date(`${year}-01-01`);
-    const endDate = new Date(`${year + 1}-01-01`);
+    // If 'All', get last 12 months, otherwise get months for specified year
+    const monthlyData: Array<any> = [];
+    const now = new Date();
     
-    const businesses = allBusinesses.rows.filter(b => {
-      const createdAt = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt as any);
-      return createdAt >= startDate && createdAt < endDate;
-    });
-    
-    res.json({
-      data: {
-        submitted: businesses.length,
-        pending: businesses.filter(b => isVerified(b.is_verified, 1)).length,
-        approved: businesses.filter(b => isVerified(b.is_verified, 2)).length,
-        rejected: businesses.filter(b => isVerified(b.is_verified, 3)).length,
+    if (useAllYears) {
+      // Last 12 months
+      for (let i = 11; i >= 0; i--) {
+        const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const month = targetDate.getMonth() + 1;
+        const monthYear = targetDate.getFullYear();
+        
+        const startDate = new Date(monthYear, month - 1, 1);
+        const endDate = new Date(monthYear, month, 0, 23, 59, 59);
+        
+        const monthBusinesses = allBusinesses.rows.filter(b => {
+          const createdAt = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt as any);
+          return createdAt >= startDate && createdAt <= endDate;
+        });
+        
+        const total = monthBusinesses.length;
+        const approved = monthBusinesses.filter(b => isVerified(b.is_verified, 2)).length;
+        const rejected = monthBusinesses.filter(b => isVerified(b.is_verified, 3)).length;
+        
+        monthlyData.push({
+          month,
+          year: monthYear,
+          total,
+          approved,
+          rejected,
+          approval_rate: total > 0 ? ((approved / total) * 100).toFixed(1) : '0',
+          rejection_rate: total > 0 ? ((rejected / total) * 100).toFixed(1) : '0',
+          avg_processing_days: 5, // Placeholder - would need updatedAt field to calculate
+        });
       }
-    });
+    } else {
+      // Specific year - 12 months
+      for (let month = 1; month <= 12; month++) {
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(year, month, 0, 23, 59, 59);
+        
+        const monthBusinesses = allBusinesses.rows.filter(b => {
+          const createdAt = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt as any);
+          return createdAt >= startDate && createdAt <= endDate;
+        });
+        
+        const total = monthBusinesses.length;
+        const approved = monthBusinesses.filter(b => isVerified(b.is_verified, 2)).length;
+        const rejected = monthBusinesses.filter(b => isVerified(b.is_verified, 3)).length;
+        
+        monthlyData.push({
+          month,
+          year,
+          total,
+          approved,
+          rejected,
+          approval_rate: total > 0 ? ((approved / total) * 100).toFixed(1) : '0',
+          rejection_rate: total > 0 ? ((rejected / total) * 100).toFixed(1) : '0',
+          avg_processing_days: 5,
+        });
+      }
+    }
+    
+    res.json({ data: monthlyData });
   } catch (error) {
     console.error('Error getting approval funnel:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -776,33 +891,69 @@ router.get('/analytics/approval-funnel/:year', async (req: Request, res: Respons
 
 /**
  * GET /api/dashboard/analytics/engagement-metrics/:year
+ * Returns monthly contact us and subscription data
  */
 router.get('/analytics/engagement-metrics/:year', async (req: Request, res: Response) => {
   try {
-    const year = parseInt(req.params.year) || new Date().getFullYear();
+    const yearParam = req.params.year;
+    const useAllYears = yearParam === 'All';
+    const now = new Date();
     
-    const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
-      COLLECTIONS.MSME_BUSINESSES,
-      { limit: 10000, offset: 0 }
-    );
+    // Get feedback (contact us) and subscribers data
+    const [feedbackData, subscribersData] = await Promise.all([
+      FirestoreRepo.list(COLLECTIONS.FEEDBACK, { limit: 10000, offset: 0 }),
+      FirestoreRepo.list(COLLECTIONS.SUBSCRIBERS, { limit: 10000, offset: 0 }),
+    ]);
     
-    const startDate = new Date(`${year}-01-01`);
-    const endDate = new Date(`${year + 1}-01-01`);
+    const contacts: Array<{month: number, year: number, count: number}> = [];
+    const subscriptions: Array<{month: number, year: number, count: number}> = [];
     
-    const businesses = allBusinesses.rows.filter(b => {
-      const createdAt = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt as any);
-      return createdAt >= startDate && createdAt < endDate;
-    });
+    // Determine date range based on year parameter
+    let startLoop: number, endLoop: number, baseYear: number;
+    if (useAllYears) {
+      // Last 12 months from now
+      startLoop = 11;
+      endLoop = 0;
+      baseYear = now.getFullYear();
+    } else {
+      // Specific year - all 12 months of that year
+      const requestedYear = parseInt(yearParam);
+      startLoop = 11;
+      endLoop = 0;
+      baseYear = requestedYear;
+    }
+    
+    // Generate monthly data
+    for (let i = startLoop; i >= endLoop; i--) {
+      const targetDate = useAllYears 
+        ? new Date(now.getFullYear(), now.getMonth() - i, 1)
+        : new Date(baseYear, 11 - i, 1);
+      const month = targetDate.getMonth() + 1;
+      const monthYear = targetDate.getFullYear();
+      
+      const startDate = new Date(monthYear, month - 1, 1);
+      const endDate = new Date(monthYear, month, 0, 23, 59, 59);
+      
+      // Count contacts in this month
+      const contactCount = feedbackData.rows.filter((c: any) => {
+        const createdAt = c.createdAt?.toDate ? c.createdAt.toDate() : new Date(c.createdAt);
+        return createdAt >= startDate && createdAt <= endDate;
+      }).length;
+      
+      // Count subscriptions in this month
+      const subCount = subscribersData.rows.filter((s: any) => {
+        const createdAt = s.createdAt?.toDate ? s.createdAt.toDate() : new Date(s.createdAt);
+        return createdAt >= startDate && createdAt <= endDate;
+      }).length;
+      
+      contacts.push({ month, year: monthYear, count: contactCount });
+      subscriptions.push({ month, year: monthYear, count: subCount });
+    }
     
     res.json({
       data: {
-        registrations: businesses.length,
-        profilesCompleted: businesses.filter(b => 
-          (b as any).business_image_url || (b as any).business_profile_url
-        ).length,
-        verificationRate: businesses.length > 0 
-          ? Math.round((businesses.filter(b => isVerified(b.is_verified, 2)).length / businesses.length) * 100)
-          : 0,
+        contacts,
+        subscriptions,
       }
     });
   } catch (error) {
@@ -927,12 +1078,14 @@ router.get('/analytics/service-providers', async (req: Request, res: Response) =
       categoryData[category] = (categoryData[category] || 0) + 1;
     });
     
+    const category_distribution = Object.entries(categoryData)
+      .map(([category_name, count]) => ({ category_name, count }))
+      .sort((a, b) => b.count - a.count);
+    
     res.json({
       data: {
         total: allProviders.rows.length,
-        byCategory: Object.entries(categoryData)
-          .map(([name, count]) => ({ name, count }))
-          .sort((a, b) => b.count - a.count),
+        category_distribution,
       }
     });
   } catch (error) {

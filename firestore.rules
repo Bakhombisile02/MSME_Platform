@@ -9,7 +9,8 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.role == 'admin';
+      // Check for either admin custom claim OR role claim for flexibility
+      return isAuthenticated() && (request.auth.token.admin == true || request.auth.token.role == 'admin');
     }
     
     function isOwner(userId) {
@@ -25,7 +26,8 @@ service cloud.firestore {
     // ADMIN COLLECTION
     // ==========================================================================
     match /admins/{adminId} {
-      allow read: if isAdmin();
+      // Allow admins to read all admin docs, or users to read their own admin doc
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == adminId);
       allow write: if false; // Only via Cloud Functions
     }
     

@@ -1,4 +1,4 @@
-import instance from "../utils/axios";
+import instance from "../utils/firebase-axios";
 
 const getDashboardTotalStats = async (year = new Date().getFullYear()) => {
   const endpoint = year === 'All' ? 'dashboard' : `dashboard/data/${year}`;

@@ -1,58 +1,28 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import Sidebar from './sidebar/sidebar'
-import { useEffect, useState, useCallback } from 'react';
-import Swal from 'sweetalert2';
+import { useAuth } from '../../context/FirebaseAuthContext';
 
 const ProtectedLayout = () => {
-  const [shouldRedirect, setShouldRedirect] = useState(false);
-  const [token, setToken] = useState(() => localStorage.getItem("authToken"));
+  const { admin, loading, isAuthenticated } = useAuth();
 
-  // Check for token changes (e.g., when 401 removes it)
-  const checkToken = useCallback(() => {
-    const currentToken = localStorage.getItem("authToken");
-    if (currentToken !== token) {
-      setToken(currentToken);
-    }
-  }, [token]);
+  // Show loading spinner while checking auth state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
-  // Listen for storage events (when token is removed by axios interceptor)
-  useEffect(() => {
-    // Check token periodically and on focus
-    const interval = setInterval(checkToken, 1000);
-    window.addEventListener('focus', checkToken);
-    window.addEventListener('storage', checkToken);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('focus', checkToken);
-      window.removeEventListener('storage', checkToken);
-    };
-  }, [checkToken]);
-
-  useEffect(() => {
-    if (!token) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Unauthorized Access',
-        text: 'You must be logged in to access this page.',
-        confirmButtonText: 'Go to Login',
-        allowOutsideClick: false,
-      }).then((result) => {
-        if (result.isConfirmed) {
-          setShouldRedirect(true);
-        }
-      });
-    }
-  }, [token]);
-
-  if (!token && shouldRedirect) {
+  // Redirect to login if not authenticated
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
   return (
     <div className="bg-white">
       <Sidebar />
-      <div className="md:pl-[17rem]   mt-12 md:mt-0">
+      <div className="md:pl-[17rem] mt-12 md:mt-0">
         <div className='bg-gray-100 min-h-screen'>
           <Outlet />
         </div>

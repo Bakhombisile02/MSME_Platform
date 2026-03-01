@@ -1,15 +1,24 @@
-import { useState } from "react";
-import { loginUser } from "../../api/auth-user";
+import { useState, useEffect } from "react";
+import { useAuth } from "../../context/FirebaseAuthContext";
 import Swal from 'sweetalert2'
 import { useNavigate } from 'react-router-dom';
 
 
 const Login = () => {
   const navigate = useNavigate();
+  const { signIn, isAuthenticated, loading: authLoading } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [data, setData] = useState({
     email: "",
     password: "",
   });
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -21,31 +30,37 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
-      const res = await loginUser(data);
-      if (res.status === 200) {
-        Swal.fire({
-          icon: "success",
-          title: "Login successful!",
-          text: "Welcome back!",
-        }).then(() => {
-          navigate("/");  
-        });
-      } else {
-        Swal.fire({
-          icon: "error",
-          title: "Login failed",
-          text: res?.data?.error || "Invalid credentials",
-        });
-      }
+      await signIn(data.email, data.password);
+      // Show success message - navigation happens via useEffect when isAuthenticated becomes true
+      Swal.fire({
+        icon: "success",
+        title: "Login successful!",
+        text: "Welcome back!",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+      // Don't navigate here - let the useEffect handle it when auth state updates
     } catch (error) {
       Swal.fire({
         icon: "error",
-        title: "Error",
-        text: error?.response?.data?.error || error.message || "Something went wrong!",
+        title: "Login failed",
+        text: error.message || "Invalid credentials",
       });
+      setIsSubmitting(false);
     }
+    // Don't reset isSubmitting on success - keeps button disabled until redirect
   };
+
+  // Show loading while checking auth state
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
   
   
   
@@ -130,9 +145,20 @@ const Login = () => {
         {/* Submit Button */}
         <button
           type="submit"
-          className="w-full bg-primary-950 text-white py-3 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          disabled={isSubmitting}
+          className="w-full bg-primary-950 text-white py-3 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Sign In
+          {isSubmitting ? (
+            <span className="flex items-center justify-center">
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Signing in...
+            </span>
+          ) : (
+            'Sign In'
+          )}
         </button>
 
         {/* Sign Up Link */}

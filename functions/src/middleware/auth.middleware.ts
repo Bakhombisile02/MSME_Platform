@@ -44,7 +44,7 @@ const db = getFirestore();
  * Verify token from Authorization header
  * Tries Firebase ID token first, then falls back to JWT
  */
-async function verifyToken(req: Request): Promise<{ uid: string; email?: string; role?: string } | null> {
+async function verifyToken(req: Request): Promise<{ uid: string; email?: string; role?: string; admin?: boolean } | null> {
   const authHeader = req.headers.authorization;
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -60,6 +60,7 @@ async function verifyToken(req: Request): Promise<{ uid: string; email?: string;
       uid: decodedToken.uid,
       email: decodedToken.email,
       role: decodedToken.role as string | undefined,
+      admin: decodedToken.admin as boolean | undefined,
     };
   } catch (firebaseError) {
     // Firebase token failed, try JWT
@@ -139,8 +140,9 @@ export async function authAdmin(req: Request, res: Response, next: NextFunction)
     return;
   }
   
-  // Check role from token (JWT tokens include role)
-  if (tokenData.role !== 'admin') {
+  // Check role from token - support both admin claim (Firebase) and role (JWT)
+  const isAdmin = tokenData.admin === true || tokenData.role === 'admin';
+  if (!isAdmin) {
     res.status(403).json({ error: 'Forbidden: Admin access required' });
     return;
   }
