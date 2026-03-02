@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { sanitizeHTML } from '../../utils/sanitize';
+import { sanitizeHTML } from '../../utils/sanitize';import { resolveAssetUrl } from '../../utils/asset-url';
+
 
 // Base64 encoded small gray placeholder image to avoid network requests
 const placeholderImage = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0 0 50 50'%3E%3Crect width='50' height='50' fill='%23e6e9ee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='12px' fill='%23133b5e'%3ENo Image%3C/text%3E%3C/svg%3E";
@@ -69,7 +70,7 @@ const ServiceProviderTable = ( { data, onEdit, onDelete, page, totalPages, handl
                         <td className="py-4 pl-3">
                           <div className="w-14 h-14 rounded-lg overflow-hidden bg-[#e6e9ee] border border-primary-950/20 flex-shrink-0 shadow-sm">
                             <img
-                              src={ entry.url.startsWith( 'http' ) ? entry.url : `${import.meta.env.VITE_DOCS_URL}${entry.url}` }
+                              src={ entry.url.startsWith( 'http' ) ? entry.url : resolveAssetUrl(entry.url) }
                               alt={ entry.name }
                               className="w-full h-full object-cover"
                               onError={ ( e ) => {
@@ -189,7 +190,7 @@ const ServiceProviderTable = ( { data, onEdit, onDelete, page, totalPages, handl
               <div className="flex flex-col items-center">
                 <div className="w-32 h-32 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center mb-4">
                   <img
-                    src={ selectedProvider.url.startsWith( 'http' ) ? selectedProvider.url : `${import.meta.env.VITE_DOCS_URL}${selectedProvider.url}` }
+                    src={ selectedProvider.url.startsWith( 'http' ) ? selectedProvider.url : resolveAssetUrl(selectedProvider.url) }
                     alt={ selectedProvider.name }
                     className="w-full h-full object-cover"
                     onError={ ( e ) => {

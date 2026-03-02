@@ -1,4 +1,4 @@
-import instance from "../utils/axios";
+import instance from "../utils/firebase-axios";
 
 // Get list of Reported Incidents
 const getReportedIncidentsList = async (page , limit ) => {

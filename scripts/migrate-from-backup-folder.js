@@ -32,10 +32,39 @@ const db = admin.firestore();
 const bucket = admin.storage().bucket();
 
 // Source directories
-const MIGRATE_FOLDER = path.join(__dirname, '../Migrate folder then delete');
-const SQL_FILE = path.join(MIGRATE_FOLDER, 'msme_db_backup_20260115_145816.sql');
-const BACKEND_PUBLIC = path.join(MIGRATE_FOLDER, 'backend_public');
-const CMS_PUBLIC = path.join(MIGRATE_FOLDER, 'cms_public');
+const sourceArg = process.argv[2];
+const MIGRATE_FOLDER = sourceArg
+  ? path.resolve(sourceArg)
+  : (process.env.MIGRATE_SOURCE_DIR
+      ? path.resolve(process.env.MIGRATE_SOURCE_DIR)
+      : path.join(__dirname, '../Migrate folder then delete'));
+
+const sqlCandidates = fs
+  .readdirSync(MIGRATE_FOLDER, { withFileTypes: true })
+  .filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith('.sql'))
+  .map(entry => path.join(MIGRATE_FOLDER, entry.name));
+
+const SQL_FILE = sqlCandidates[0] || path.join(MIGRATE_FOLDER, 'msme_db_backup_20260115_145816.sql');
+const backendPublicCandidates = [
+  'backend_public',
+  'public',
+  'website-public',
+];
+
+const cmsPublicCandidates = [
+  'cms_public',
+  'cms-public',
+];
+
+const BACKEND_PUBLIC =
+  backendPublicCandidates
+    .map(dir => path.join(MIGRATE_FOLDER, dir))
+    .find(candidate => fs.existsSync(candidate)) || path.join(MIGRATE_FOLDER, 'public');
+
+const CMS_PUBLIC =
+  cmsPublicCandidates
+    .map(dir => path.join(MIGRATE_FOLDER, dir))
+    .find(candidate => fs.existsSync(candidate)) || path.join(MIGRATE_FOLDER, 'cms_public');
 
 // Collection names mapping
 const COLLECTIONS = {
@@ -948,6 +977,11 @@ async function migrateAdmins(sql) {
  */
 async function uploadBackendImages() {
   console.log('\n📤 Uploading Backend Images...');
+
+  if (!fs.existsSync(BACKEND_PUBLIC)) {
+    console.log(`  ℹ️ Skipping backend image upload: folder not found (${BACKEND_PUBLIC})`);
+    return;
+  }
   
   const files = walkDir(BACKEND_PUBLIC);
   stats.images.total = files.length;
@@ -965,6 +999,11 @@ async function uploadBackendImages() {
  */
 async function uploadCmsAssets() {
   console.log('\n📤 Uploading CMS Assets...');
+
+  if (!fs.existsSync(CMS_PUBLIC)) {
+    console.log(`  ℹ️ Skipping CMS assets upload: folder not found (${CMS_PUBLIC})`);
+    return;
+  }
   
   const files = walkDir(CMS_PUBLIC);
   const prevTotal = stats.images.total;

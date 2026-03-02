@@ -1,3 +1,4 @@
+import { resolveAssetUrl } from '../../utils/asset-url';
 
 const DownloadNewTable = ({ data, onEdit, onDelete,  page, totalPages, handleNextPage, handlePrevPage, loading }) => {
   return (
@@ -62,7 +63,7 @@ const DownloadNewTable = ({ data, onEdit, onDelete,  page, totalPages, handleNex
  
                         <td className="py-4 pl-3 font-medium text-primary-950">
                           <div className="truncate" >
-                            <a target='_blank' href={`${import.meta.env.VITE_DOCS_URL}${entry.url}`} >Link</a>
+                            <a target='_blank' href={resolveAssetUrl(entry.url)} >Link</a>
                           </div>
                         </td>
                         <td className="py-4 pl-3">

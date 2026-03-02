@@ -1,4 +1,4 @@
-import instance from "../utils/axios";
+import instance from "../utils/firebase-axios";
 
 // Upload File for business category image
 const uploadbusinessCategory = async (file) => {

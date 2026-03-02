@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { sanitizeHTML } from '../../utils/sanitize';
+import { sanitizeHTML } from '../../utils/sanitize';import { resolveAssetUrl } from '../../utils/asset-url';
+
 
 const placeholderImage = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0 0 50 50'%3E%3Crect width='50' height='50' fill='%23e6e9ee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='12px' fill='%23133b5e'%3ENo Image%3C/text%3E%3C/svg%3E";
 
@@ -79,7 +80,7 @@ const ArticleTable = ({ data, onEdit, onDelete, page, totalPages, handleNextPage
                             onClick={() => openModal(entry)}
                           >
                             <img 
-                              src={`${import.meta.env.VITE_DOCS_URL}${entry.image_url}`} 
+                              src={resolveAssetUrl(entry.image_url)} 
                               alt={entry.name} 
                               className="w-full h-full object-cover"
                               onError={(e) => {
@@ -107,7 +108,7 @@ const ArticleTable = ({ data, onEdit, onDelete, page, totalPages, handleNextPage
                         </td>
                         {/* <td className="py-4 pl-3">
                           <a 
-                            href={`${import.meta.env.VITE_DOCS_URL}${entry.url}`} 
+                            href={resolveAssetUrl(entry.url)} 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="text-accent-500 hover:text-accent-600 transition-colors"
@@ -205,7 +206,7 @@ const ArticleTable = ({ data, onEdit, onDelete, page, totalPages, handleNextPage
                 {/* <div>
                   <p className="text-sm font-medium text-gray-500">Author</p>
                   <a 
-                    href={`${import.meta.env.VITE_DOCS_URL}${selectedArticle.url}`} 
+                    href={resolveAssetUrl(selectedArticle.url)} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="text-accent-500 hover:text-accent-600 transition-colors"
@@ -217,7 +218,7 @@ const ArticleTable = ({ data, onEdit, onDelete, page, totalPages, handleNextPage
               <div className="flex justify-center">
                 <div className="w-full h-48 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
                   <img 
-                    src={`${import.meta.env.VITE_DOCS_URL}${selectedArticle.image_url}`} 
+                    src={resolveAssetUrl(selectedArticle.image_url)} 
                     alt={selectedArticle.name} 
                     className="w-full h-full object-cover"
                     onError={(e) => {

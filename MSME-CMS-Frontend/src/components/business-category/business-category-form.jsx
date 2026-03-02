@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Swal from 'sweetalert2';
-import CustomInputField from '../CustomInputField';
+import CustomInputField from '../CustomInputField';import { resolveAssetUrl } from '../../utils/asset-url';
+
 
 const BusinessCategoryForm = ({ onSubmit, onCancel, defaultData = {},loading }) => {
   const [formData, setFormData] = useState({
@@ -77,7 +78,7 @@ const BusinessCategoryForm = ({ onSubmit, onCancel, defaultData = {},loading }) 
         {defaultData?.icon_url && (
             <div className="mt-2">
               <img 
-                src={`${import.meta.env.VITE_DOCS_URL}${defaultData.icon_url}`} 
+                src={resolveAssetUrl(defaultData.icon_url)} 
                 alt={defaultData.name} 
                 className="h-24 w-24 object-cover rounded-md border border-gray-200 bg-white" 
                 onError={(e) => {

@@ -1,4 +1,4 @@
-import instance from "../utils/axios";
+import instance from "../utils/firebase-axios";
 
 // FAQ Create
 const createFaq = async ( {question, answer} ) => {

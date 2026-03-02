@@ -56,6 +56,16 @@ const nextConfig = {
         hostname: 'cms.ceec-msme.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'storage.googleapis.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'msmesite-53367.firebasestorage.app',
+        pathname: '/**',
+      },
     ],
     unoptimized: true,
   },

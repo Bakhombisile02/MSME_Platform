@@ -279,8 +279,39 @@ export async function list<T = any>(
   const collection = db.collection(collectionName);
   const limit = params.limit || 10;
   const includeDeleted = params.includeDeleted || false;
+  const offset = params.offset || 0;
+
+  const filterSoftDeleted = (docs: FirebaseFirestore.QueryDocumentSnapshot[]) => {
+    if (includeDeleted) return docs;
+    return docs.filter(doc => {
+      const data = doc.data();
+      return data.deletedAt === null || data.deletedAt === undefined;
+    });
+  };
+
+  const toResult = (docs: FirebaseFirestore.QueryDocumentSnapshot[], totalCount: number) => {
+    const currentPage = Math.floor(offset / limit) + 1;
+    const totalPages = Math.max(1, Math.ceil(totalCount / limit));
+    return {
+      rows: docs.map(doc => convertTimestamps(doc.data()) as T),
+      count: totalCount,
+      totalPages,
+      currentPage,
+    } as any;
+  };
+
+  // Legacy offset-based pagination needs exact total counts for CMS/website tables.
+  // We compute exact totals after soft-delete filtering to match Sequelize behavior.
+  if (!params.cursor) {
+    const baseQuery = buildQuery(collection, params);
+    const fullSnapshot = await baseQuery.get();
+    const activeDocs = filterSoftDeleted(fullSnapshot.docs);
+    const totalCount = activeDocs.length;
+    const pageDocs = activeDocs.slice(offset, offset + limit);
+    return toResult(pageDocs, totalCount);
+  }
   
-  // Build base query
+  // Cursor-based pagination path (kept for compatibility)
   let dataQuery = buildQuery(collection, params);
   
   // Apply cursor if provided (preferred for scalability)
@@ -302,27 +333,19 @@ export async function list<T = any>(
   const snapshot = await dataQuery.get();
   
   // Filter out soft-deleted documents if not including deleted
-  let docs = snapshot.docs;
-  if (!includeDeleted) {
-    docs = docs.filter(doc => {
-      const data = doc.data();
-      return data.deletedAt === null || data.deletedAt === undefined;
-    });
-  }
+  const docs = filterSoftDeleted(snapshot.docs);
   
   // Check if there are more results
   const hasMore = docs.length > limit;
   const resultDocs = hasMore ? docs.slice(0, limit) : docs;
   const nextCursor = hasMore && resultDocs.length > 0 ? resultDocs[resultDocs.length - 1].id : null;
   
-  // For backward compatibility with offset-based pagination
-  const offset = params.offset || 0;
   const currentPage = Math.floor(offset / limit) + 1;
-  
+
   // Note: totalPages is approximate for cursor-based pagination
   return {
     rows: resultDocs.map(doc => convertTimestamps(doc.data()) as T),
-    count: resultDocs.length, // Only current page count for cursor pagination
+    count: resultDocs.length,
     totalPages: hasMore ? currentPage + 1 : currentPage, // Approximate
     currentPage,
     nextCursor,

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import Swal from 'sweetalert2';
-import CustomInputField from '../CustomInputField';
+import CustomInputField from '../CustomInputField';import { resolveAssetUrl } from '../../utils/asset-url';
+
 
 const DownloadForm = ({ defaultData = {}, onSubmit, onCancel, loading }) => {
   const [formData, setFormData] = useState({
@@ -112,7 +113,7 @@ const DownloadForm = ({ defaultData = {}, onSubmit, onCancel, loading }) => {
 
         {defaultData?.url && (
               <a
-              href={`${import.meta.env.VITE_DOCS_URL}${defaultData.url}`}
+              href={resolveAssetUrl(defaultData.url)}
               alt={defaultData.name}
               className="h-24 w-24 object-cover rounded-md border border-gray-200 bg-white"
             >Link </a>

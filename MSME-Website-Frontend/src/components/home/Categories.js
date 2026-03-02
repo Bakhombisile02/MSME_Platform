@@ -4,6 +4,15 @@ import { useEffect, useState } from 'react';
 import { getBusinessCategoryList } from '@/apis/business-category-api';
 import Image from 'next/image';
 
+const resolveAssetUrl = (value) => {
+  if (!value) return '';
+  if (value.startsWith('http://') || value.startsWith('https://')) return value;
+
+  const base = (process.env.NEXT_PUBLIC_API_IMG_BASE_URL || '').replace(/\/$/, '');
+  const path = String(value).replace(/^\//, '');
+  return base ? `${base}/${path}` : `/${path}`;
+};
+
 export default function Categories () {
   const [ categories, setCategories ] = useState( [] );
   const [ loading, setLoading ] = useState( true );
@@ -115,7 +124,7 @@ export default function Categories () {
                 >
                   <div className="mb-3 sm:mb-4 w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 flex items-center justify-center">
                     <Image
-                      src={ `${process.env.NEXT_PUBLIC_API_IMG_BASE_URL}/${category.icon_url}` }
+                      src={ resolveAssetUrl(category.icon_url) }
                       alt={ category.name }
                       width={ 50 }
                       height={ 50 }

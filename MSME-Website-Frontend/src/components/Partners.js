@@ -3,6 +3,15 @@ import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { getPartnersLogoList } from '@/apis/lists-api';
 
+const resolveAssetUrl = (value) => {
+  if (!value) return '';
+  if (value.startsWith('http://') || value.startsWith('https://')) return value;
+
+  const base = (process.env.NEXT_PUBLIC_API_IMG_BASE_URL || '').replace(/\/$/, '');
+  const assetPath = String(value).replace(/^\//, '');
+  return base ? `${base}/${assetPath}` : `/${assetPath}`;
+};
+
 export default function Partners() {
   const [partners, setPartners] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -108,7 +117,7 @@ export default function Partners() {
                   >
                     <div className="relative w-32 h-24">
                       <Image 
-                        src={`${process.env.NEXT_PUBLIC_API_IMG_BASE_URL}/${partner.icon_url}`}
+                        src={resolveAssetUrl(partner.icon_url)}
                         alt={partner.name}
                         fill
                         className="object-contain"

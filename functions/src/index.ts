@@ -17,6 +17,7 @@ setGlobalOptions({
   region: 'us-central1',
   memory: '256MiB',
   timeoutSeconds: 60,
+  concurrency: 80, // Allow 1 instance to handle 80 requests simultaneously (faster, cheaper)
 });
 
 // =============================================================================

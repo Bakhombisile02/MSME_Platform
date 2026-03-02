@@ -4,6 +4,15 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { getHomeSliderList } from '@/apis/lists-api';
 
+const resolveImageUrl = (value) => {
+  if (!value) return '';
+  if (value.startsWith('http://') || value.startsWith('https://')) return value;
+
+  const base = (process.env.NEXT_PUBLIC_API_IMG_BASE_URL || '').replace(/\/$/, '');
+  const path = String(value).replace(/^\//, '');
+  return base ? `${base}/${path}` : `/${path}`;
+};
+
 export default function Slider() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [slides, setSlides] = useState([]);
@@ -16,13 +25,13 @@ export default function Slider() {
   useEffect(() => {
     const fetchSlides = async () => {
       try {
-        const response = await getHomeSliderList(1, 10);
+        const response = await getHomeSliderList(1, 50);
         if (response?.values?.rows) {
           const formattedSlides = response.values.rows.map((slide, index) => ({
             id: index + 1,
-            bg: slide.image_url,
+            bg: resolveImageUrl(slide.image_url),
             title: slide.name,
-            description: slide.description.replace(/<[^>]*>/g, ''), // Remove HTML tags
+            description: (slide.description || '').replace(/<[^>]*>/g, ''), // Remove HTML tags
             buttonText: "READ MORE",
             buttonLink: slide.url || "/businesses"
           }));
@@ -170,7 +179,7 @@ export default function Slider() {
               index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
             }`}
             style={{
-              backgroundImage: `url('${process.env.NEXT_PUBLIC_API_IMG_BASE_URL}/${slide.bg}')`,
+              backgroundImage: `url('${slide.bg}')`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
             }}

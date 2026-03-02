@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { getMsmeBusinessDetailData, updateMsmeBusinessStatueData } from '../../api/msme-business';
-import { FaFilePdf } from "react-icons/fa";
+import { FaFilePdf } from "react-icons/fa";import { resolveAssetUrl } from '../../utils/asset-url';
+
 const placeholderImage = "/assets/logo_msme.png";
 
 const MsmeDetailPage = () => {
@@ -182,7 +183,7 @@ const MsmeDetailPage = () => {
             </div>
             <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
               <img
-                src={ `${import.meta.env.VITE_DOCS_URL}${msmeDetails.business_image_url}` || placeholderImage }
+                src={ resolveAssetUrl(msmeDetails.business_image_url) || placeholderImage }
                 alt={ msmeDetails.name_of_organization }
                 className="w-full h-full object-cover"
                 onError={ ( e ) => {
@@ -276,7 +277,7 @@ const MsmeDetailPage = () => {
                     <p className="text-sm font-medium text-gray-500">Business Profile URL</p>
                     <div className=' flex items-center justify-center w-full'>
                       <a
-                        href={ `${import.meta.env.VITE_DOCS_URL}${msmeDetails.business_profile_url}` }
+                        href={ resolveAssetUrl(msmeDetails.business_profile_url) }
                         download
                         target="_blank"
                         rel="noopener noreferrer"

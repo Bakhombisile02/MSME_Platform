@@ -1,4 +1,4 @@
-import instance from "../utils/axios";
+import instance from "../utils/firebase-axios";
 
 // Upload File for Service Provider image
 const uploadServiceProvider = async (file) => {

@@ -14,6 +14,7 @@ const bucket = admin.storage().bucket();
 const prefixes = [
   'business-categories/',
   'business-category/',
+  'home-banner/',
   'partners-logo/',
   'team-member/',
   'blog-image/',

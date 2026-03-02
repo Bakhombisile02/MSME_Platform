@@ -3,7 +3,8 @@ import Swal from 'sweetalert2';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import { getServiceCategory } from '../../api/service-category';
-import CustomInputField from '../CustomInputField';
+import CustomInputField from '../CustomInputField';import { resolveAssetUrl } from '../../utils/asset-url';
+
 
 const ServiceProviderForm = ({ onSubmit, onCancel, defaultData = {} ,loading}) => {
   const [formData, setFormData] = useState({
@@ -250,7 +251,7 @@ const ServiceProviderForm = ({ onSubmit, onCancel, defaultData = {} ,loading}) =
         {defaultData?.url && (
           <div className="md:col-span-2 mt-2">
             <img 
-              src={`${import.meta.env.VITE_DOCS_URL}${defaultData.url}`} 
+              src={resolveAssetUrl(defaultData.url)} 
               alt={defaultData.name} 
               className="h-24 w-24 object-cover rounded-md border border-gray-200 bg-white" 
               onError={(e) => {

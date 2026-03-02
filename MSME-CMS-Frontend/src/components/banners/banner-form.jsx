@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import Swal from 'sweetalert2';
-import CustomInputField from '../CustomInputField';
+import CustomInputField from '../CustomInputField';import { resolveAssetUrl } from '../../utils/asset-url';
+
 
 const BannerForm = ({ defaultData = {}, onSubmit, onCancel, loading }) => {
   const [formData, setFormData] = useState({
@@ -128,7 +129,7 @@ const BannerForm = ({ defaultData = {}, onSubmit, onCancel, loading }) => {
         {defaultData?.image_url && (
           <div className="mt-2">
             <img
-              src={`${import.meta.env.VITE_DOCS_URL}${defaultData.image_url}`}
+              src={resolveAssetUrl(defaultData.image_url)}
               alt={defaultData.name}
               className="h-24 w-24 object-cover rounded-md border border-gray-200 bg-white"
               onError={(e) => {

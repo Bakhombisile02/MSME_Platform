@@ -59,10 +59,15 @@ async function getDashboardData(req: Request, res: Response) {
       } else {
         // Fallback: query businesses directly for specific year
         console.log('Analytics not available, falling back to direct query for year', year);
-        const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
-          COLLECTIONS.MSME_BUSINESSES,
-          { limit: 10000, offset: 0 }
-        );
+        // Get businesses with a lighter query to prevent OOM
+    const snapshot = await db.collection(COLLECTIONS.MSME_BUSINESSES)
+      .where('deletedAt', '==', null)
+      .select('is_verified', 'createdAt', 'ownerType', 'owner_gender_summary', 'disability_owned', 'business_type', 'registration_number', 'region', 'business_category_id', 'number_of_employees')
+      .get();
+      
+    const allBusinesses = { 
+      rows: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)) 
+    };
         
         const startDate = new Date(`${year}-01-01`);
         const endDate = new Date(`${year + 1}-01-01`);
@@ -81,10 +86,15 @@ async function getDashboardData(req: Request, res: Response) {
     } else {
       // No year specified - return all-time totals
       console.log('No year specified, returning all-time totals');
-      const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
-        COLLECTIONS.MSME_BUSINESSES,
-        { limit: 10000, offset: 0 }
-      );
+      // Get businesses with a lighter query to prevent OOM
+    const snapshot = await db.collection(COLLECTIONS.MSME_BUSINESSES)
+      .where('deletedAt', '==', null)
+      .select('is_verified', 'createdAt', 'ownerType', 'owner_gender_summary', 'disability_owned', 'business_type', 'registration_number', 'region', 'business_category_id', 'number_of_employees')
+      .get();
+      
+    const allBusinesses = { 
+      rows: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)) 
+    };
       
       const businesses = allBusinesses.rows;
       totals = {
@@ -123,10 +133,15 @@ async function getMsmeTotals(req: Request, res: Response) {
     const year = yearParam ? parseInt(yearParam) : null;
     
     // Get all businesses
-    const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
-      COLLECTIONS.MSME_BUSINESSES,
-      { limit: 10000, offset: 0 }
-    );
+    // Get businesses with a lighter query to prevent OOM
+    const snapshot = await db.collection(COLLECTIONS.MSME_BUSINESSES)
+      .where('deletedAt', '==', null)
+      .select('is_verified', 'createdAt', 'ownerType', 'owner_gender_summary', 'disability_owned', 'business_type', 'registration_number', 'region', 'business_category_id', 'number_of_employees')
+      .get();
+      
+    const allBusinesses = { 
+      rows: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)) 
+    };
     
     // Filter by year only if year is specified
     let businesses = allBusinesses.rows;
@@ -210,10 +225,15 @@ async function getDirectorsInfo(req: Request, res: Response) {
     const year = req.params.year ? parseInt(req.params.year) : null;
     
     // Get all approved businesses
-    const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
-      COLLECTIONS.MSME_BUSINESSES,
-      { limit: 10000, offset: 0 }
-    );
+    // Get businesses with a lighter query to prevent OOM
+    const snapshot = await db.collection(COLLECTIONS.MSME_BUSINESSES)
+      .where('deletedAt', '==', null)
+      .select('is_verified', 'createdAt', 'ownerType', 'owner_gender_summary', 'disability_owned', 'business_type', 'registration_number', 'region', 'business_category_id', 'number_of_employees')
+      .get();
+      
+    const allBusinesses = { 
+      rows: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)) 
+    };
     
     // Filter for approved businesses
     let businesses = allBusinesses.rows.filter(b => isVerified(b.is_verified, 2));
@@ -237,24 +257,25 @@ async function getDirectorsInfo(req: Request, res: Response) {
     let total25YearsOldDirectors = 0;
     let total40YearsOldDirectors = 0;
     
-    const db = getFirestore();
-    
-    // Fetch all directors in parallel to avoid N+1 queries
-    const directorPromises = businesses.map(business => 
-      db
-        .collection(COLLECTIONS.MSME_BUSINESSES)
-        .doc(business.id)
-        .collection('directors')
-        .where('deletedAt', '==', null)
-        .get()
-    );
-    
-    const directorSnapshots = await Promise.all(directorPromises);
-    
-    // Process all directors
-    directorSnapshots.forEach(directorsSnapshot => {
-      directorsSnapshot.forEach(doc => {
-        const director = doc.data();
+    // Fetch directors in batches to avoid overwhelming memory and Firestore connections
+    const batchSize = 100;
+    for (let i = 0; i < businesses.length; i += batchSize) {
+      const batch = businesses.slice(i, i + batchSize);
+      const batchPromises = batch.map(business => 
+        db
+          .collection(COLLECTIONS.MSME_BUSINESSES)
+          .doc(business.id)
+          .collection('directors')
+          .where('deletedAt', '==', null)
+          .get()
+      );
+      
+      const batchSnapshots = await Promise.all(batchPromises);
+      
+      // Process all directors in this batch
+      batchSnapshots.forEach(directorsSnapshot => {
+        directorsSnapshot.forEach(doc => {
+          const director = doc.data();
         totalDirectors++;
         
         // Count by gender (handle both lowercase and capitalized)
@@ -268,8 +289,9 @@ async function getDirectorsInfo(req: Request, res: Response) {
         if (age === '18-25') total18YearsOldDirectors++;
         else if (age === '25-40') total25YearsOldDirectors++;
         else if (age === '40+') total40YearsOldDirectors++;
+        });
       });
-    });
+    } // End of batch loop
     
     res.json({
       message: 'Dashboard MSME Directors data fetched successfully',
@@ -302,10 +324,15 @@ async function getMonthlyRequests(req: Request, res: Response) {
     const year = yearParam ? parseInt(yearParam) : new Date().getFullYear();
     
     // Get all businesses
-    const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
-      COLLECTIONS.MSME_BUSINESSES,
-      { limit: 10000, offset: 0 }
-    );
+    // Get businesses with a lighter query to prevent OOM
+    const snapshot = await db.collection(COLLECTIONS.MSME_BUSINESSES)
+      .where('deletedAt', '==', null)
+      .select('is_verified', 'createdAt', 'ownerType', 'owner_gender_summary', 'disability_owned', 'business_type', 'registration_number', 'region', 'business_category_id', 'number_of_employees')
+      .get();
+      
+    const allBusinesses = { 
+      rows: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)) 
+    };
     
     // Filter by year (defaults to current year if not specified)
     const startDate = new Date(`${year}-01-01`);
@@ -351,10 +378,15 @@ async function getTurnoverData(req: Request, res: Response) {
     const year = req.params.year ? parseInt(req.params.year) : null;
     
     // Get all businesses
-    const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
-      COLLECTIONS.MSME_BUSINESSES,
-      { limit: 10000, offset: 0 }
-    );
+    // Get businesses with a lighter query to prevent OOM
+    const snapshot = await db.collection(COLLECTIONS.MSME_BUSINESSES)
+      .where('deletedAt', '==', null)
+      .select('is_verified', 'createdAt', 'ownerType', 'owner_gender_summary', 'disability_owned', 'business_type', 'registration_number', 'region', 'business_category_id', 'number_of_employees')
+      .get();
+      
+    const allBusinesses = { 
+      rows: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)) 
+    };
     
     // Filter for approved businesses
     let businesses = allBusinesses.rows.filter(b => isVerified(b.is_verified, 2));
@@ -402,10 +434,15 @@ async function getRegionWiseData(req: Request, res: Response) {
     const year = req.params.year ? parseInt(req.params.year) : null;
     
     // Get all businesses
-    const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
-      COLLECTIONS.MSME_BUSINESSES,
-      { limit: 10000, offset: 0 }
-    );
+    // Get businesses with a lighter query to prevent OOM
+    const snapshot = await db.collection(COLLECTIONS.MSME_BUSINESSES)
+      .where('deletedAt', '==', null)
+      .select('is_verified', 'createdAt', 'ownerType', 'owner_gender_summary', 'disability_owned', 'business_type', 'registration_number', 'region', 'business_category_id', 'number_of_employees')
+      .get();
+      
+    const allBusinesses = { 
+      rows: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)) 
+    };
     
     // Filter for approved businesses
     let businesses = allBusinesses.rows.filter(b => isVerified(b.is_verified, 2));
@@ -455,10 +492,15 @@ router.get('/msme_list_according_to_category', async (req: Request, res: Respons
       .get();
     
     // Get all businesses for counting
-    const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
-      COLLECTIONS.MSME_BUSINESSES,
-      { limit: 10000, offset: 0 }
-    );
+    // Get businesses with a lighter query to prevent OOM
+    const snapshot = await db.collection(COLLECTIONS.MSME_BUSINESSES)
+      .where('deletedAt', '==', null)
+      .select('is_verified', 'createdAt', 'ownerType', 'owner_gender_summary', 'disability_owned', 'business_type', 'registration_number', 'region', 'business_category_id', 'number_of_employees')
+      .get();
+      
+    const allBusinesses = { 
+      rows: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)) 
+    };
     
     const categoryData = categoriesSnapshot.docs.map((doc) => {
       const category = doc.data();
@@ -527,10 +569,15 @@ router.get('/service_provider_list_according_to_category', async (req: Request, 
  */
 router.get('/analytics/gender-diversity', async (req: Request, res: Response) => {
   try {
-    const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
-      COLLECTIONS.MSME_BUSINESSES,
-      { limit: 10000, offset: 0 }
-    );
+    // Get businesses with a lighter query to prevent OOM
+    const snapshot = await db.collection(COLLECTIONS.MSME_BUSINESSES)
+      .where('deletedAt', '==', null)
+      .select('is_verified', 'createdAt', 'ownerType', 'owner_gender_summary', 'disability_owned', 'business_type', 'registration_number', 'region', 'business_category_id', 'number_of_employees')
+      .get();
+      
+    const allBusinesses = { 
+      rows: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)) 
+    };
     
     const businesses = allBusinesses.rows.filter(b => isVerified(b.is_verified, 2));
     
@@ -585,10 +632,15 @@ router.get('/analytics/growth-trends', async (req: Request, res: Response) => {
     const currentMonth = now.getMonth();
     
     // Get all businesses once
-    const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
-      COLLECTIONS.MSME_BUSINESSES,
-      { limit: 10000, offset: 0 }
-    );
+    // Get businesses with a lighter query to prevent OOM
+    const snapshot = await db.collection(COLLECTIONS.MSME_BUSINESSES)
+      .where('deletedAt', '==', null)
+      .select('is_verified', 'createdAt', 'ownerType', 'owner_gender_summary', 'disability_owned', 'business_type', 'registration_number', 'region', 'business_category_id', 'number_of_employees')
+      .get();
+      
+    const allBusinesses = { 
+      rows: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)) 
+    };
     
     // Build last 12 months of data
     const monthlyData: Array<{month: number, year: number, count: number, approved: number}> = [];
@@ -639,10 +691,15 @@ router.get('/analytics/growth-trends', async (req: Request, res: Response) => {
  */
 router.get('/analytics/business-age-analysis', async (req: Request, res: Response) => {
   try {
-    const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
-      COLLECTIONS.MSME_BUSINESSES,
-      { limit: 10000, offset: 0 }
-    );
+    // Get businesses with a lighter query to prevent OOM
+    const snapshot = await db.collection(COLLECTIONS.MSME_BUSINESSES)
+      .where('deletedAt', '==', null)
+      .select('is_verified', 'createdAt', 'ownerType', 'owner_gender_summary', 'disability_owned', 'business_type', 'registration_number', 'region', 'business_category_id', 'number_of_employees')
+      .get();
+      
+    const allBusinesses = { 
+      rows: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)) 
+    };
     
     const businesses = allBusinesses.rows.filter(b => isVerified(b.is_verified, 2));
     const currentYear = new Date().getFullYear();
@@ -687,10 +744,15 @@ router.get('/analytics/business-age-analysis', async (req: Request, res: Respons
  */
 router.get('/analytics/category-performance', async (req: Request, res: Response) => {
   try {
-    const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
-      COLLECTIONS.MSME_BUSINESSES,
-      { limit: 10000, offset: 0 }
-    );
+    // Get businesses with a lighter query to prevent OOM
+    const snapshot = await db.collection(COLLECTIONS.MSME_BUSINESSES)
+      .where('deletedAt', '==', null)
+      .select('is_verified', 'createdAt', 'ownerType', 'owner_gender_summary', 'disability_owned', 'business_type', 'registration_number', 'region', 'business_category_id', 'number_of_employees')
+      .get();
+      
+    const allBusinesses = { 
+      rows: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)) 
+    };
     
     const categoryPerformance: Record<string, { total: number; approved: number }> = {};
     
@@ -729,10 +791,15 @@ router.get('/analytics/category-performance', async (req: Request, res: Response
  */
 router.get('/analytics/geographic-analysis', async (req: Request, res: Response) => {
   try {
-    const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
-      COLLECTIONS.MSME_BUSINESSES,
-      { limit: 10000, offset: 0 }
-    );
+    // Get businesses with a lighter query to prevent OOM
+    const snapshot = await db.collection(COLLECTIONS.MSME_BUSINESSES)
+      .where('deletedAt', '==', null)
+      .select('is_verified', 'createdAt', 'ownerType', 'owner_gender_summary', 'disability_owned', 'business_type', 'registration_number', 'region', 'business_category_id', 'number_of_employees')
+      .get();
+      
+    const allBusinesses = { 
+      rows: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)) 
+    };
     
     const businesses = allBusinesses.rows.filter(b => isVerified(b.is_verified, 2));
     
@@ -772,10 +839,15 @@ router.get('/analytics/geographic-analysis', async (req: Request, res: Response)
  */
 router.get('/analytics/employee-distribution', async (req: Request, res: Response) => {
   try {
-    const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
-      COLLECTIONS.MSME_BUSINESSES,
-      { limit: 10000, offset: 0 }
-    );
+    // Get businesses with a lighter query to prevent OOM
+    const snapshot = await db.collection(COLLECTIONS.MSME_BUSINESSES)
+      .where('deletedAt', '==', null)
+      .select('is_verified', 'createdAt', 'ownerType', 'owner_gender_summary', 'disability_owned', 'business_type', 'registration_number', 'region', 'business_category_id', 'number_of_employees')
+      .get();
+      
+    const allBusinesses = { 
+      rows: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)) 
+    };
     
     const businesses = allBusinesses.rows.filter(b => isVerified(b.is_verified, 2));
     
@@ -815,10 +887,15 @@ router.get('/analytics/approval-funnel/:year', async (req: Request, res: Respons
     const useAllYears = yearParam === 'All';
     const year = useAllYears ? new Date().getFullYear() : parseInt(yearParam);
     
-    const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
-      COLLECTIONS.MSME_BUSINESSES,
-      { limit: 10000, offset: 0 }
-    );
+    // Get businesses with a lighter query to prevent OOM
+    const snapshot = await db.collection(COLLECTIONS.MSME_BUSINESSES)
+      .where('deletedAt', '==', null)
+      .select('is_verified', 'createdAt', 'ownerType', 'owner_gender_summary', 'disability_owned', 'business_type', 'registration_number', 'region', 'business_category_id', 'number_of_employees')
+      .get();
+      
+    const allBusinesses = { 
+      rows: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)) 
+    };
     
     // If 'All', get last 12 months, otherwise get months for specified year
     const monthlyData: Array<any> = [];
@@ -968,10 +1045,15 @@ router.get('/analytics/engagement-metrics/:year', async (req: Request, res: Resp
 router.get('/analytics/year-over-year', async (req: Request, res: Response) => {
   try {
     const currentYear = new Date().getFullYear();
-    const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
-      COLLECTIONS.MSME_BUSINESSES,
-      { limit: 10000, offset: 0 }
-    );
+    // Get businesses with a lighter query to prevent OOM
+    const snapshot = await db.collection(COLLECTIONS.MSME_BUSINESSES)
+      .where('deletedAt', '==', null)
+      .select('is_verified', 'createdAt', 'ownerType', 'owner_gender_summary', 'disability_owned', 'business_type', 'registration_number', 'region', 'business_category_id', 'number_of_employees')
+      .get();
+      
+    const allBusinesses = { 
+      rows: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)) 
+    };
     
     const yearlyData = [];
     
@@ -1028,10 +1110,15 @@ router.get('/analytics/time-comparison/:period', async (req: Request, res: Respo
         previousStart = new Date(previousEnd.getFullYear(), 0, 1);
     }
     
-    const allBusinesses = await FirestoreRepo.list<MSMEBusiness>(
-      COLLECTIONS.MSME_BUSINESSES,
-      { limit: 10000, offset: 0 }
-    );
+    // Get businesses with a lighter query to prevent OOM
+    const snapshot = await db.collection(COLLECTIONS.MSME_BUSINESSES)
+      .where('deletedAt', '==', null)
+      .select('is_verified', 'createdAt', 'ownerType', 'owner_gender_summary', 'disability_owned', 'business_type', 'registration_number', 'region', 'business_category_id', 'number_of_employees')
+      .get();
+      
+    const allBusinesses = { 
+      rows: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)) 
+    };
     
     const currentPeriod = allBusinesses.rows.filter(b => {
       const createdAt = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt as any);

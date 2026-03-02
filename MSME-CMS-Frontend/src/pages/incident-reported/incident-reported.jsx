@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
-import { getReportedIncidentsList } from '../../api/incident-reported';
+import { getReportedIncidentsList } from '../../api/incident-reported';import { resolveAssetUrl } from '../../utils/asset-url';
+
 
 
 const placeholderImage = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 50 50'%3E%3Crect width='50' height='50' fill='%23cccccc'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle'  font-family='sans-serif' font-size='12px' fill='%23666666'%3ENo Image%3C/text%3E%3C/svg%3E";
@@ -117,7 +118,7 @@ const IncidentReported = () => {
                       </td>
                       <td className="py-3 px-4 text-center flex justify-center  font-medium">
                           <img 
-                            src={`${import.meta.env.VITE_DOCS_URL}${incident.url}`} 
+                            src={resolveAssetUrl(incident.url)} 
                             alt={incident.name} 
                             className=" w-14 h-14  rounded-lg  object-cover"
                             onError={(e) => {
@@ -175,7 +176,7 @@ const IncidentReported = () => {
                   {/* Image Section */}
                   <div className="flex justify-center md:justify-start">
                     <img
-                      src={`${import.meta.env.VITE_DOCS_URL}${selectedIncident.url}`}
+                      src={resolveAssetUrl(selectedIncident.url)}
                       alt={selectedIncident.name || "Incident image"}
                       className="w-48 h-48 rounded-xl object-cover border border-gray-200 shadow-md hover:shadow-lg transition-shadow"
                       onError={(e) => {

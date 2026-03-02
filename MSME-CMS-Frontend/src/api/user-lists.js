@@ -1,4 +1,4 @@
-import instance from "../utils/axios";
+import instance from "../utils/firebase-axios";
 
 // Get list of Registered Users
 const getRegisterUserList = async (page , limit ) => {

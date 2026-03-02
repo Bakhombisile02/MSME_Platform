@@ -1,5 +1,6 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';import { resolveAssetUrl } from '../../utils/asset-url';
+
 
 const placeholderImage = "/assets/logo_msme.png";
 
@@ -71,7 +72,7 @@ const MsmeBusinessTable = ( { data, page, totalPages, handleNextPage, handlePrev
                             className="w-14 h-14 rounded-lg overflow-hidden bg-[#e6e9ee] border border-primary-950/20 flex-shrink-0 shadow-sm cursor-pointer"
                           >
                             <img
-                              src={ `${import.meta.env.VITE_DOCS_URL}${business.business_image_url}` || placeholderImage }
+                              src={ resolveAssetUrl(business.business_image_url) || placeholderImage }
                               alt={ business.name_of_organization }
                               className="w-full h-full object-cover"
                               onError={ ( e ) => {

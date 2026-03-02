@@ -14,6 +14,27 @@ import { COLLECTIONS, BusinessCategory, BusinessSubCategory } from '../models/sc
 
 const router = Router();
 
+const isSubCategoryRoute = (req: Request) => {
+  const routePath = `${req.baseUrl || ''}${req.path || ''}`;
+  return routePath.includes('/business-sub-category');
+};
+
+const normalizeSubCategory = (item: any) => {
+  const normalizedCategoryId = String(item.category_id ?? item.BusinessCategorieId ?? '');
+  const normalizedCategoryName = item.category_name || item.BusinessCategorieName || '';
+  const normalizedSubCategoryName = item.sub_category_name || item.name || '';
+
+  return {
+    ...item,
+    name: item.name || normalizedSubCategoryName,
+    BusinessCategorieId: item.BusinessCategorieId ?? normalizedCategoryId,
+    BusinessCategorieName: item.BusinessCategorieName || normalizedCategoryName,
+    sub_category_name: normalizedSubCategoryName,
+    category_id: normalizedCategoryId,
+    category_name: normalizedCategoryName,
+  };
+};
+
 // =============================================================================
 // BUSINESS CATEGORIES
 // =============================================================================
@@ -24,6 +45,43 @@ const router = Router();
  */
 router.get('/list', async (req: Request, res: Response) => {
   try {
+    if (isSubCategoryRoute(req)) {
+      const { category_id, BusinessCategorieId } = req.query;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 100;
+      const offset = (page - 1) * limit;
+
+      const params: any = {
+        limit,
+        offset,
+        orderBy: 'name',
+        orderDirection: 'asc',
+      };
+
+      const filterCategoryId = String(category_id || BusinessCategorieId || '').trim();
+      if (filterCategoryId) {
+        params.searchParams = { BusinessCategorieId: filterCategoryId };
+      }
+
+      const subResult = await FirestoreRepo.list<BusinessSubCategory>(
+        COLLECTIONS.BUSINESS_SUB_CATEGORIES,
+        params
+      );
+
+      const rows = subResult.rows.map((row: any) => normalizeSubCategory(row));
+
+      return res.json({
+        values: {
+          rows,
+          count: subResult.count,
+        },
+        page: subResult.currentPage,
+        limit,
+        total_pages: subResult.totalPages,
+        total: subResult.count,
+      });
+    }
+
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 100;
     const offset = (page - 1) * limit;
@@ -87,17 +145,53 @@ router.get('/:id',
  */
 router.post('/add',
   authAdmin,
-  [body('category_name').notEmpty().withMessage('Category name is required')],
+  [body('category_name').optional(), body('name').optional()],
   handleValidationErrors,
   async (req: Request, res: Response) => {
     try {
+      if (isSubCategoryRoute(req)) {
+        const subCategoryName = req.body.sub_category_name || req.body.name;
+        const categoryId = req.body.category_id || req.body.BusinessCategorieId;
+        const categoryName = req.body.category_name || req.body.BusinessCategorieName;
+
+        if (!subCategoryName || !categoryId) {
+          return res.status(400).json({ error: 'Sub-category name and category ID are required' });
+        }
+
+        const subCategory = await FirestoreRepo.create<BusinessSubCategory>(
+          COLLECTIONS.BUSINESS_SUB_CATEGORIES,
+          {
+            name: subCategoryName,
+            sub_category_name: subCategoryName,
+            BusinessCategorieId: String(categoryId),
+            category_id: String(categoryId),
+            BusinessCategorieName: categoryName || '',
+            category_name: categoryName || '',
+            description: req.body.description || '',
+          }
+        );
+
+        return res.status(201).json({
+          message: 'Sub-category created successfully',
+          data: normalizeSubCategory(subCategory),
+        });
+      }
+
       const { category_name, category_image, description } = req.body;
+      const resolvedName = category_name || req.body.name;
+      const resolvedImage = category_image || req.body.icon_url;
+
+      if (!resolvedName) {
+        return res.status(400).json({ error: 'Category name is required' });
+      }
       
       const category = await FirestoreRepo.create<BusinessCategory>(
         COLLECTIONS.BUSINESS_CATEGORIES,
         {
-          category_name,
-          category_image,
+          category_name: resolvedName,
+          name: resolvedName,
+          category_image: resolvedImage,
+          icon_url: resolvedImage,
           description,
           businessCount: 0,
         }
@@ -124,12 +218,44 @@ router.put('/update/:id',
   handleValidationErrors,
   async (req: Request, res: Response) => {
     try {
+      if (isSubCategoryRoute(req)) {
+        const subCategoryName = req.body.sub_category_name || req.body.name;
+        const categoryId = req.body.category_id || req.body.BusinessCategorieId;
+        const categoryName = req.body.category_name || req.body.BusinessCategorieName;
+
+        const updatedSubCategory = await FirestoreRepo.update<BusinessSubCategory>(
+          COLLECTIONS.BUSINESS_SUB_CATEGORIES,
+          req.params.id,
+          {
+            ...(subCategoryName ? { name: subCategoryName, sub_category_name: subCategoryName } : {}),
+            ...(categoryId ? { BusinessCategorieId: String(categoryId), category_id: String(categoryId) } : {}),
+            ...(categoryName ? { BusinessCategorieName: categoryName, category_name: categoryName } : {}),
+            ...(req.body.description !== undefined ? { description: req.body.description } : {}),
+          }
+        );
+
+        if (!updatedSubCategory) {
+          return res.status(404).json({ error: 'Sub-category not found' });
+        }
+
+        return res.json({
+          message: 'Sub-category updated successfully',
+          data: normalizeSubCategory(updatedSubCategory),
+        });
+      }
+
       const { category_name, category_image, description } = req.body;
+      const resolvedName = category_name || req.body.name;
+      const resolvedImage = category_image || req.body.icon_url;
       
       const updated = await FirestoreRepo.update<BusinessCategory>(
         COLLECTIONS.BUSINESS_CATEGORIES,
         req.params.id,
-        { category_name, category_image, description }
+        {
+          ...(resolvedName ? { category_name: resolvedName, name: resolvedName } : {}),
+          ...(resolvedImage ? { category_image: resolvedImage, icon_url: resolvedImage } : {}),
+          ...(description !== undefined ? { description } : {}),
+        }
       );
       
       if (!updated) {
@@ -157,6 +283,19 @@ router.delete('/delete/:id',
   handleValidationErrors,
   async (req: Request, res: Response) => {
     try {
+      if (isSubCategoryRoute(req)) {
+        const deletedSub = await FirestoreRepo.softDelete(
+          COLLECTIONS.BUSINESS_SUB_CATEGORIES,
+          req.params.id
+        );
+
+        if (!deletedSub) {
+          return res.status(404).json({ error: 'Sub-category not found' });
+        }
+
+        return res.json({ message: 'Sub-category deleted successfully' });
+      }
+
       const deleted = await FirestoreRepo.softDelete(
         COLLECTIONS.BUSINESS_CATEGORIES,
         req.params.id
@@ -174,6 +313,31 @@ router.delete('/delete/:id',
   }
 );
 
+// Legacy CMS compatibility (uses PUT for soft delete)
+router.put('/delete/:id',
+  authAdmin,
+  validateIdParam('id'),
+  handleValidationErrors,
+  async (req: Request, res: Response) => {
+    try {
+      const collectionName = isSubCategoryRoute(req)
+        ? COLLECTIONS.BUSINESS_SUB_CATEGORIES
+        : COLLECTIONS.BUSINESS_CATEGORIES;
+
+      const deleted = await FirestoreRepo.softDelete(collectionName, req.params.id);
+
+      if (!deleted) {
+        return res.status(404).json({ error: 'Item not found' });
+      }
+
+      return res.json({ message: 'Deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
 // =============================================================================
 // BUSINESS SUB-CATEGORIES
 // =============================================================================
@@ -186,23 +350,26 @@ router.delete('/delete/:id',
 router.get('/list-according-to-business-id/:BusinessCategorieId', async (req: Request, res: Response) => {
   try {
     const { BusinessCategorieId } = req.params;
-    
+
     const result = await FirestoreRepo.list<BusinessSubCategory>(
       COLLECTIONS.BUSINESS_SUB_CATEGORIES,
       {
-        searchParams: { category_id: BusinessCategorieId },
-        limit: 100,
+        limit: 500,
         offset: 0,
-        orderBy: 'sub_category_name',
+        orderBy: 'name',
         orderDirection: 'asc',
       }
     );
+
+    const rows = result.rows
+      .map((row: any) => normalizeSubCategory(row))
+      .filter((row: any) => String(row.category_id) === String(BusinessCategorieId));
     
     // Match the old backend response format
     res.json({
       values: {
-        rows: result.rows,
-        count: result.count,
+        rows,
+        count: rows.length,
       },
     });
   } catch (error: any) {
@@ -237,11 +404,12 @@ router.get('/sub/list', async (req: Request, res: Response) => {
       COLLECTIONS.BUSINESS_SUB_CATEGORIES,
       params
     );
+    const rows = result.rows.map((row: any) => normalizeSubCategory(row));
     
     // Match the old backend response format
     res.json({
       values: {
-        rows: result.rows,
+        rows,
         count: result.count,
       },
       page: result.currentPage,
